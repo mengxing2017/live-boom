@@ -6,3 +6,5 @@ export type { SubmitRequest } from './generated/SubmitRequest';
 export type { ResultRequest } from './generated/ResultRequest';
 export type { TaskStatus } from './generated/TaskStatus';
 export type { AppError } from './generated/AppError';
+export type { InputSource } from './generated/InputSource';
+export type { PluginExample } from './generated/PluginExample';

@@ -2,4 +2,4 @@
 import type { PluginInfo } from "./PluginInfo";
 import type { Task } from "./Task";
 
-export type Snapshot = { version: number, session_id: string, paused: boolean, display_ready: boolean, active: PluginInfo | null, config: Record<string, unknown>, current: Task | null, queue: Array<Task>, history: Array<Task>, };
+export type Snapshot = { version: number, session_id: string, paused: boolean, display_ready: boolean, demo_enabled: boolean, demo_interval: number, presentation: Record<string, unknown>, active: PluginInfo | null, config: Record<string, unknown>, current: Task | null, queue: Array<Task>, history: Array<Task>, };
