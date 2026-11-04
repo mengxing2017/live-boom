@@ -1,7 +1,7 @@
 {
   "name": "likeboom-workspace",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.2",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @likeboom/desktop-app dev",
@@ -10,9 +10,10 @@
     "test": "pnpm build && node --test tests/*.test.mjs",
     "test:rust": "cargo test",
     "gen:types": "cargo test -p play-contracts export_bindings",
-    "plugins:build": "node tools/plugin-pack/pack.mjs plugins/registry && node tools/plugin-pack/pack.mjs plugins/workshop-2d",
+    "plugins:build": "node tools/plugin-pack/pack.mjs plugins/registry && pnpm --filter @likeboom/play-printer-3d build",
     "tauri": "pnpm plugins:build && pnpm --filter @likeboom/desktop-app tauri",
-    "test:browser": "node tests/browser.mjs"
+    "test:browser": "node tests/browser.mjs",
+    "test:printer": "node tests/printer-browser.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

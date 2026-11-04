@@ -1,7 +1,7 @@
 {
   "id": "community.registry",
   "name": "昵称登记",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "sdkApi": "1",
   "hostVersion": ">=0.2.0 <0.3.0",
   "entry": "web/index.html",
