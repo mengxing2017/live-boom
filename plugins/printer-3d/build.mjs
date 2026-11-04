@@ -1,0 +1,14 @@
+import {build} from 'esbuild';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {pack} from '@likeboom/plugin-sdk/pack';
+const root=new URL('.',import.meta.url);
+const control=await build({entryPoints:[new URL('src/control/App.tsx',root).pathname],bundle:true,write:false,jsx:'automatic',outdir:'out',format:'iife',target:'es2022',minify:true,legalComments:'inline',define:{'process.env.NODE_ENV':'"production"'}});
+const controlScript=control.outputFiles.find(f=>f.path.endsWith('.js')).text.replace(/<\/script/gi,'<\\/script');
+const controlCss=control.outputFiles.find(f=>f.path.endsWith('.css')).text.replace(/<\/style/gi,'<\\/style');
+await mkdir(new URL('web/',root),{recursive:true});
+await writeFile(new URL('web/control.html',root),`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3D 制作台</title><style>${controlCss}</style><div id="root"></div><script>${controlScript}</script></html>`);
+const result=await build({entryPoints:[new URL('src/display.tsx',root).pathname],bundle:true,write:false,jsx:'automatic',format:'iife',target:'es2022',minify:true,legalComments:'inline',define:{'process.env.NODE_ENV':'"production"'}});
+const script=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');
+await mkdir(new URL('web/',root),{recursive:true});
+await writeFile(new URL('web/index.html',root),`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><style>html,body,#root,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:#202832;font:16px system-ui}canvas{display:block;width:100%;height:100%}#caption{position:absolute;left:3%;bottom:5%;max-width:85%;padding:12px 20px;border-radius:12px;color:#fff;background:#101827d9;pointer-events:none;white-space:pre-line}#diagnostics{position:absolute;right:12px;top:12px;color:#fff;background:#15212bc9;padding:7px;font:12px monospace}</style><div id="root"></div><script>${script}</script></html>`);
+console.log(await pack(root.pathname,new URL('dist/plugin.lbplug',root).pathname));

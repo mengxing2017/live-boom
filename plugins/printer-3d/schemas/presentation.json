@@ -1,0 +1,132 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "theme": {
+      "type": "string",
+      "enum": [
+        "home",
+        "study",
+        "night",
+        "workshop",
+        "garden"
+      ],
+      "default": "home",
+      "title": "场景 / Room"
+    },
+    "quality": {
+      "type": "string",
+      "enum": [
+        "lite",
+        "balanced",
+        "high",
+        "ultra",
+        "max"
+      ],
+      "default": "balanced",
+      "title": "质量"
+    },
+    "aa": {
+      "type": "string",
+      "enum": [
+        "off",
+        "msaa2",
+        "msaa4",
+        "msaa8",
+        "ssaa15",
+        "ssaa2"
+      ],
+      "default": "msaa4",
+      "title": "抗锯齿"
+    },
+    "fps": {
+      "type": "integer",
+      "minimum": 24,
+      "maximum": 120,
+      "default": 30,
+      "title": "目标 FPS",
+      "enum": [
+        24,
+        30,
+        60,
+        90,
+        120
+      ]
+    },
+    "smooth": {
+      "type": "boolean",
+      "default": true,
+      "title": "流畅优先"
+    },
+    "overlay": {
+      "type": "boolean",
+      "default": true,
+      "title": "状态牌"
+    },
+    "shadows": {
+      "type": "boolean",
+      "default": true,
+      "title": "阴影"
+    },
+    "reflections": {
+      "type": "boolean",
+      "default": true,
+      "title": "反射"
+    },
+    "effects": {
+      "type": "boolean",
+      "default": true,
+      "title": "扫光"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "zh-CN",
+        "en"
+      ],
+      "default": "zh-CN",
+      "title": "语言 / Language"
+    },
+    "volume": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.4,
+      "title": "音量"
+    },
+    "mute": {
+      "type": "boolean",
+      "default": true,
+      "title": "静音"
+    },
+    "voice": {
+      "type": "string",
+      "maxLength": 64,
+      "default": "",
+      "title": "本地语音名称"
+    },
+    "rate": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 2,
+      "default": 1,
+      "title": "语速"
+    }
+  },
+  "required": [
+    "theme",
+    "quality",
+    "aa",
+    "fps",
+    "smooth",
+    "overlay",
+    "shadows",
+    "reflections",
+    "effects",
+    "language",
+    "volume",
+    "mute",
+    "voice",
+    "rate"
+  ]
+}

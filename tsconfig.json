@@ -22,6 +22,8 @@
   },
   "include": [
     "apps/desktop/src",
-    "packages/*/src"
+    "packages/*/src",
+    "plugins/printer-3d/src/control",
+    "plugins/printer-3d/src/display.tsx"
   ]
 }

@@ -1,0 +1,87 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "maxLength": 32,
+      "default": "",
+      "title": "昵称"
+    },
+    "content": {
+      "type": "string",
+      "enum": [
+        "portrait",
+        "text"
+      ],
+      "default": "portrait",
+      "title": "内容"
+    },
+    "media": {
+      "type": "string",
+      "maxLength": 80,
+      "default": "",
+      "title": "媒体"
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "comment",
+        "like",
+        "follow",
+        "join",
+        "heart",
+        "beer",
+        "lollipop",
+        "other"
+      ],
+      "default": "manual",
+      "title": "事件"
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 95,
+            "default": 80,
+            "title": "娱乐分数"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "small",
+              "large"
+            ],
+            "default": "small",
+            "title": "尺寸"
+          }
+        },
+        "required": [
+          "score",
+          "size"
+        ]
+      }
+    },
+    "scored": {
+      "type": "boolean",
+      "default": true,
+      "title": "娱乐评分"
+    }
+  },
+  "required": [
+    "nickname",
+    "content",
+    "media",
+    "event",
+    "units",
+    "scored"
+  ]
+}

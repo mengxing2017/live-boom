@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "default": "访客",
+      "title": "昵称 / Name"
+    },
+    "content": {
+      "type": "string",
+      "enum": [
+        "portrait",
+        "text"
+      ],
+      "default": "portrait",
+      "title": "内容"
+    },
+    "media": {
+      "type": "string",
+      "maxLength": 80,
+      "default": "",
+      "title": "自有头像引用（导入后填入）"
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "comment",
+        "like",
+        "follow",
+        "join",
+        "heart",
+        "beer",
+        "lollipop",
+        "other"
+      ],
+      "default": "manual",
+      "title": "本地事件 / Event"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 1,
+      "title": "事件数量 / Amount"
+    }
+  },
+  "required": [
+    "nickname",
+    "content",
+    "media",
+    "event",
+    "quantity"
+  ]
+}

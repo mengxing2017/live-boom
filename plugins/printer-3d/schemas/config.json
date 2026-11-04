@@ -1,0 +1,342 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "duration": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 30,
+      "default": 12,
+      "title": "单份打印秒数"
+    },
+    "speed": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 1,
+      "title": "离线动画倍率"
+    },
+    "score": {
+      "type": "boolean",
+      "default": true,
+      "title": "离线娱乐评分（60–95）"
+    },
+    "speech": {
+      "type": "boolean",
+      "default": false,
+      "title": "本地语音与字幕"
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "manual": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "manual 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "small",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "comment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "comment 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "small",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "like": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "like 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "small",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "follow": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "follow 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "small",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "join": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "join 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "small",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "heart": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "heart 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "large",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "beer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "beer 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 2,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "large",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "lollipop": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "lollipop 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 3,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "large",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        },
+        "other": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "title": "other 启用"
+            },
+            "units": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "title": "每次制作份数"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "default": "large",
+              "title": "尺寸"
+            }
+          },
+          "required": [
+            "enabled",
+            "units",
+            "size"
+          ]
+        }
+      },
+      "required": [
+        "manual",
+        "comment",
+        "like",
+        "follow",
+        "join",
+        "heart",
+        "beer",
+        "lollipop",
+        "other"
+      ]
+    }
+  },
+  "required": [
+    "duration",
+    "speed",
+    "score",
+    "speech",
+    "rules"
+  ]
+}

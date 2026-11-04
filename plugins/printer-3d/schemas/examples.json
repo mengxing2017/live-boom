@@ -1,0 +1,92 @@
+[
+  {
+    "name": "合成首字头像 · 橘子汽水",
+    "input": {
+      "nickname": "橘子汽水",
+      "content": "portrait",
+      "media": "",
+      "event": "manual",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 星星同学",
+    "input": {
+      "nickname": "星星同学",
+      "content": "portrait",
+      "media": "",
+      "event": "comment",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 奶油小熊",
+    "input": {
+      "nickname": "奶油小熊",
+      "content": "portrait",
+      "media": "",
+      "event": "like",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 薄荷拿铁",
+    "input": {
+      "nickname": "薄荷拿铁",
+      "content": "portrait",
+      "media": "",
+      "event": "follow",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 蓝莓布丁",
+    "input": {
+      "nickname": "蓝莓布丁",
+      "content": "portrait",
+      "media": "",
+      "event": "join",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 桃桃乌龙",
+    "input": {
+      "nickname": "桃桃乌龙",
+      "content": "portrait",
+      "media": "",
+      "event": "heart",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 快乐阿柴",
+    "input": {
+      "nickname": "快乐阿柴",
+      "content": "portrait",
+      "media": "",
+      "event": "beer",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "合成首字头像 · 月亮晚安",
+    "input": {
+      "nickname": "月亮晚安",
+      "content": "portrait",
+      "media": "",
+      "event": "lollipop",
+      "quantity": 1
+    }
+  },
+  {
+    "name": "批量昵称文字 · 手动演示",
+    "input": {
+      "nickname": "收礼登记昵称",
+      "content": "text",
+      "media": "",
+      "event": "manual",
+      "quantity": 3
+    }
+  }
+]
