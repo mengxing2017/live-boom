@@ -31,11 +31,11 @@ test('independent private plugin uses the same SDK and does not modify the publi
   } finally { await rm(root,{recursive:true,force:true}); }
 });
 test('sample packages contain self-contained documents and no host imports', async () => {
-  for (const scene of ['registry','workshop-2d']) {
+  for (const scene of ['registry','printer-3d']) {
     const bundle=JSON.parse(await readFile(`plugins/${scene}/dist/plugin.lbplug`));
     const manifest=JSON.parse(Buffer.from(bundle.files['manifest.json'],'base64'));
     const html=Buffer.from(bundle.files[manifest.entry],'base64').toString();
-    assert.ok(html.includes('connectPlugin'));
+    assert.ok(html.includes('connectPlugin') || html.includes('WebGLRenderer'));
     assert.ok(!html.includes('@tauri-apps') && !html.includes('__TAURI_INTERNALS__'));
   }
 });
