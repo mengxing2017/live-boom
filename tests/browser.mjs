@@ -18,12 +18,13 @@ const server=createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const port=server.address().port;
-const vite=spawn(process.execPath,['apps/desktop/node_modules/vite/bin/vite.js','apps/desktop','--host','127.0.0.1'],{stdio:['ignore','pipe','pipe']});
+const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const vitePort=reserve.address().port;await new Promise(r=>reserve.close(r));const base=`http://127.0.0.1:${vitePort}`;
+const vite=spawn(process.execPath,['apps/desktop/node_modules/vite/bin/vite.js','apps/desktop','--host','127.0.0.1','--port',String(vitePort)],{stdio:['ignore','pipe','pipe']});
 let viteLog='';vite.stdout.on('data',b=>viteLog+=b);vite.stderr.on('data',b=>viteLog+=b);
 const profile=await mkdtemp(join(tmpdir(),'likeboom-chrome-'));
 let chrome,ws;
 try {
- for(let n=0;;n++){try{if((await fetch('http://127.0.0.1:5173')).ok)break;}catch{}if(n>100)throw new Error(viteLog);await delay(100);}
+ for(let n=0;;n++){try{if((await fetch(base)).ok)break;}catch{}if(n>100)throw new Error(viteLog);await delay(100);}
  chrome=spawn(bin,['--headless','--no-sandbox','--disable-gpu','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{stdio:['ignore','ignore','pipe']});
  const endpoint=await new Promise((resolve,reject)=>{let log='';const timeout=setTimeout(()=>reject(new Error(log)),15000);chrome.stderr.on('data',b=>{log+=b;const m=log.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(m){clearTimeout(timeout);resolve(m[1]);}});chrome.on('exit',()=>{clearTimeout(timeout);reject(new Error(log));});});
  ws=new WebSocket(endpoint);await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
@@ -32,7 +33,7 @@ try {
  const call=(method,params={},sessionId)=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(new Error(method+' timed out'));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params,sessionId}));});
  const {targetId}=await call('Target.createTarget',{url:'about:blank'});const {sessionId}=await call('Target.attachToTarget',{targetId,flatten:true});
  await call('Page.enable',{},sessionId);
- const url=`http://127.0.0.1:5173/tests/browser.html?document=${encodeURIComponent(`http://127.0.0.1:${port}/plugin`)}`;
+ const url=`${base}/tests/browser.html?document=${encodeURIComponent(`http://127.0.0.1:${port}/plugin`)}`;
  await call('Page.navigate',{url},sessionId);
  const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
  let prepared;
@@ -45,4 +46,4 @@ try {
  for(let n=0;n<50;n++){if((await evaluate('window.__test.results.length'))>0)break;await delay(100);}
  assert.deepEqual(await evaluate('window.__test.results'),['completed']);
  console.log('Chromium: opaque iframe, host DOM/API isolation, CSP network denial, Plugin RPC, pause/resume and single completion passed');
-} finally {ws?.close();chrome?.kill();vite.kill('SIGTERM');await new Promise(r=>server.close(r));await delay(300);await rm(profile,{recursive:true,force:true});}
+} finally {ws?.close();chrome?.kill();vite.kill('SIGTERM');await new Promise(r=>server.close(r));await delay(300);await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:150}).catch(error=>console.error('Temporary Chromium profile cleanup:',error.message));}
