@@ -69,13 +69,23 @@ importers:
 
   packages/plugin-sdk: {}
 
-  plugins/registry:
+  plugins/printer-3d:
     dependencies:
       '@likeboom/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
+      react:
+        specifier: ^19.2.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
 
-  plugins/workshop-2d:
+  plugins/registry:
     dependencies:
       '@likeboom/plugin-sdk':
         specifier: workspace:*
