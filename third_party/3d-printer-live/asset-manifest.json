@@ -1,0 +1,125 @@
+[
+  {
+    "source": "assets/three.module.js",
+    "target": "plugins/printer-3d/vendor/three.module.js",
+    "sha256": "ce1fa418de16a19495a9f72495580e3015d7745c296d3ce0485897f902ddedfb",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "local imports; disposal extensions where needed",
+    "targetSha256": "ce1fa418de16a19495a9f72495580e3015d7745c296d3ce0485897f902ddedfb"
+  },
+  {
+    "source": "assets/OrbitControls.js",
+    "target": "plugins/printer-3d/vendor/OrbitControls.js",
+    "sha256": "80efaadea4f8a636a65fb0bd08bfef62f3d93a0bb94e2e7500f23176c5c07f4e",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "local imports; disposal extensions where needed",
+    "targetSha256": "6f3052dd8860a60fe6999260d50558ff54609523724c6e374326228e5590cf55"
+  },
+  {
+    "source": "assets/Reflector.js",
+    "target": "plugins/printer-3d/vendor/Reflector.js",
+    "sha256": "012ecf98f5fc9bd262871e33d79392a25c04c2573ed68852eb3b8d2d39f9808b",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "local imports; disposal extensions where needed",
+    "targetSha256": "446cba593c612fabf01442b593b6bd69b6a13668ab55866a70579bcb5774ee3e"
+  },
+  {
+    "source": "scene-output.mjs",
+    "target": "plugins/printer-3d/src/render/scene-output.js",
+    "sha256": "f08dacb04af737612116481219e7b14c208fcb25f00271381aa40d9e331e1293",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "local imports; disposal extensions where needed",
+    "targetSha256": "24f1052477e2e45f5bcbf9e1bf336230bcb88e30ee8478020fe197147d7febfc"
+  },
+  {
+    "source": "render-budget.mjs",
+    "target": "plugins/printer-3d/src/render/render-budget.js",
+    "sha256": "d73b50398fe86d5e64f7f44e2f7d1646dbc97edc05b5a023d5fa775c133a60e1",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "local imports; disposal extensions where needed",
+    "targetSha256": "d3bfea943fd08961c585320e2273853caa114cc5239bcd39174bc553c9ed4dce"
+  },
+  {
+    "source": "assets/robot-arm.wav",
+    "target": "plugins/printer-3d/assets/audio/robot-arm.wav",
+    "sha256": "4119ab72147e96d5a87b31439d7fdbbc4ec52e54a8ecab00c52c7b88a2d43c22",
+    "license": "upstream MIT; attribution retained",
+    "status": "verified",
+    "changes": "none",
+    "targetSha256": "4119ab72147e96d5a87b31439d7fdbbc4ec52e54a8ecab00c52c7b88a2d43c22"
+  },
+  {
+    "source": "assets/printing-writing.wav",
+    "target": "plugins/printer-3d/assets/audio/printing-writing.wav",
+    "sha256": "e5d802a7ece2ee91d6bbc637582491cab765855019f975e4d2a3451add3f36eb",
+    "license": "upstream MIT; attribution retained",
+    "status": "verified",
+    "changes": "none",
+    "targetSha256": "e5d802a7ece2ee91d6bbc637582491cab765855019f975e4d2a3451add3f36eb"
+  },
+  {
+    "source": "assets/avatar-atlas",
+    "target": null,
+    "status": "replace",
+    "license": "unverified third-party image rights",
+    "changes": "procedural initials/text and original geometric icons"
+  },
+  {
+    "source": "assets/original-icons",
+    "target": null,
+    "status": "replace",
+    "license": "unverified third-party image rights",
+    "changes": "procedural initials/text and original geometric icons"
+  },
+  {
+    "source": "docs/screenshots",
+    "target": null,
+    "status": "replace",
+    "license": "unverified third-party image rights",
+    "changes": "procedural initials/text and original geometric icons"
+  },
+  {
+    "source": "index.html",
+    "target": "plugins/printer-3d/src/machine/model.js",
+    "sha256": "82361f328917121f0c00120c61e653546f9cd8cd990bd483e38ec59b58b9e48b",
+    "license": "MIT",
+    "status": "verified",
+    "changes": "extract geometry/kinematics; remove external loaders, JS queue, platform and DOM control logic",
+    "targetSha256": "8c722077e12de620ee671e58f648f3865090306fa0edb259dadea44e8578128d",
+    "adaptedTargets": [
+      "plugins/printer-3d/src/machine/model.js",
+      "plugins/printer-3d/src/scene/session.js",
+      "plugins/printer-3d/schemas/examples.json"
+    ]
+  },
+  {
+    "source": "assets/generated/*",
+    "target": null,
+    "status": "replace",
+    "license": "not redistributed in this migration",
+    "changes": "procedural scenery/materials; no photographic plates copied"
+  },
+  {
+    "source": "index.html",
+    "target": "plugins/printer-3d/src/control/App.tsx",
+    "sha256": "82361f328917121f0c00120c61e653546f9cd8cd990bd483e38ec59b58b9e48b",
+    "targetSha256": "3a0636587e5e49a35eb9ed8c1b9eae732563d6773fb88aac69ca5f50cce133b4",
+    "license": "MIT",
+    "status": "adapted",
+    "changes": "React rewrite of studio layout and offline controls; source advertising/capture UI omitted; all task state owned by public Rust host"
+  },
+  {
+    "source": "assets/live-rules.css",
+    "target": "plugins/printer-3d/src/control/studio.css",
+    "sha256": "a4003925d5a443eed7f4fbfcd254d6c633bc10c120873982ac87dd031c9ebef9",
+    "targetSha256": "a51fc0c15e3119253de9ba722596b90de192d42e8e6eb29fa4853432d3994009",
+    "license": "MIT",
+    "status": "adapted",
+    "changes": "React rewrite of studio layout and offline controls; source advertising/capture UI omitted; all task state owned by public Rust host"
+  }
+]
