@@ -1,6 +1,8 @@
 use crate::schema;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use play_contracts::{API_VERSION, AppError, AppResult, HOST_VERSION, PluginInfo, PluginManifest};
+use play_contracts::{
+    API_VERSION, AppError, AppResult, HOST_VERSION, PluginExample, PluginInfo, PluginManifest,
+};
 use ring::{digest, signature};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -200,6 +202,50 @@ impl PluginManager {
             return Err(error("INCOMPATIBLE_API", "宿主或 SDK 版本不兼容"));
         }
         semver::Version::parse(&manifest.version).map_err(io)?;
+        const CAPABILITIES: &[&str] = &[
+            "plan.v1",
+            "session.v1",
+            "presentation.v1",
+            "preferences.own.v1",
+            "media.own.v1",
+            "audio.own.v1",
+            "preview.frames.v1",
+            "export.png.v1",
+            "control.v1",
+        ];
+        if manifest
+            .capabilities
+            .iter()
+            .any(|c| !CAPABILITIES.contains(&c.as_str()))
+        {
+            return Err(error("INCOMPATIBLE_CAPABILITY", "未知能力"));
+        }
+        for path in [
+            &manifest.plan_schema,
+            &manifest.presentation_schema,
+            &manifest.examples,
+            &manifest.control_entry,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !safe_path(path) || !files.contains_key(path) {
+                return Err(error("INVALID_MANIFEST", "扩展 schema 不存在"));
+            }
+        }
+        if manifest.capabilities.iter().any(|c| c == "plan.v1") != manifest.plan_schema.is_some()
+            || manifest.capabilities.iter().any(|c| c == "presentation.v1")
+                != manifest.presentation_schema.is_some()
+            || manifest.capabilities.iter().any(|c| c == "control.v1")
+                != manifest.control_entry.is_some()
+        {
+            return Err(error("INVALID_MANIFEST", "能力与 schema 不匹配"));
+        }
+        if manifest.work_units_selector_field.is_some() != manifest.work_units_rules_field.is_some()
+            || (manifest.work_units_selector_field.is_some() && manifest.work_units_field.is_none())
+        {
+            return Err(error("INVALID_MANIFEST", "规则工作量声明不完整"));
+        }
         let permissions = [
             "task.current.read",
             "task.result.report",
@@ -264,12 +310,53 @@ impl PluginManager {
         }
         schema::check_schema(&input_schema)?;
         schema::check_schema(&config_schema)?;
+        let read_schema = |path: &Option<String>| -> AppResult<Option<serde_json::Value>> {
+            path.as_ref()
+                .map(|p| {
+                    let s = serde_json::from_slice(&files[p]).map_err(io)?;
+                    schema::check_schema(&s)?;
+                    Ok(s)
+                })
+                .transpose()
+        };
+        let examples: Vec<PluginExample> = manifest
+            .examples
+            .as_ref()
+            .map(|p| serde_json::from_slice(&files[p]).map_err(io))
+            .transpose()?
+            .unwrap_or_default();
+        if examples.len() > 12 {
+            return Err(error("INVALID_MANIFEST", "最多 12 个输入模板"));
+        }
+        for example in &examples {
+            if example.name.is_empty() || example.name.chars().count() > 32 {
+                return Err(error("INVALID_MANIFEST", "输入模板名称错误"));
+            }
+            schema::validate(&input_schema, &example.input)?;
+        }
+        let plan_schema = read_schema(&manifest.plan_schema)?;
+        let presentation_schema = read_schema(&manifest.presentation_schema)?;
+        if let Some(field) = &manifest.work_units_field {
+            let definition = &input_schema["properties"][field];
+            if definition["type"] != "integer"
+                || definition["minimum"].as_u64().is_none_or(|n| n < 1)
+                || definition["maximum"].as_u64().is_none_or(|n| n > 100)
+            {
+                return Err(error(
+                    "INVALID_MANIFEST",
+                    "工作量字段必须是 1–100 的有界整数",
+                ));
+            }
+        }
         Ok(Verified {
             info: PluginInfo {
                 manifest,
+                examples,
                 digest: hash(bytes),
                 input_schema,
                 config_schema,
+                plan_schema,
+                presentation_schema,
             },
             files,
         })
@@ -352,10 +439,22 @@ impl PluginManager {
         self.install(&fs::read(path).map_err(io)?)
     }
     pub fn document(&self, digest: &str) -> AppResult<String> {
+        self.document_for(digest, false)
+    }
+    pub fn document_for(&self, digest: &str, control: bool) -> AppResult<String> {
         let plugin = self.load(digest)?;
-        let html =
-            String::from_utf8(plugin.files[&plugin.info.manifest.entry].clone()).map_err(io)?;
-        // srcdoc is opaque-origin, scripts only, no network/subframes/host APIs. No eval.
+        let entry = if control {
+            plugin
+                .info
+                .manifest
+                .control_entry
+                .as_ref()
+                .ok_or_else(|| error("FORBIDDEN_RESOURCE", "插件没有操作台入口"))?
+        } else {
+            &plugin.info.manifest.entry
+        };
+        let html = String::from_utf8(plugin.files[entry].clone()).map_err(io)?;
+        // Opaque sandbox, scripts only, no network/subframes/host APIs. No eval.
         Ok(format!(
             "<!doctype html><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src data:; font-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'\">{html}"
         ))

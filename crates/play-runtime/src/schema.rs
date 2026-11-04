@@ -19,6 +19,9 @@ pub fn check_schema(s: &Value) -> AppResult<()> {
         "maximum",
         "enum",
         "default",
+        "items",
+        "minItems",
+        "maxItems",
     ];
     if o.keys().any(|k| !allowed.contains(&k.as_str())) {
         return Err(invalid("不支持的 schema 关键字"));
@@ -26,7 +29,7 @@ pub fn check_schema(s: &Value) -> AppResult<()> {
     let kind = s["type"]
         .as_str()
         .ok_or_else(|| invalid("缺少 schema type"))?;
-    if !["object", "string", "number", "integer", "boolean"].contains(&kind) {
+    if !["object", "string", "number", "integer", "boolean", "array"].contains(&kind) {
         return Err(invalid("不支持的 schema type"));
     }
     if kind == "object" {
@@ -53,7 +56,16 @@ pub fn check_schema(s: &Value) -> AppResult<()> {
             }
         }
     }
-    for key in ["minLength", "maxLength"] {
+    if kind == "array" {
+        let max = s["maxItems"]
+            .as_u64()
+            .ok_or_else(|| invalid("数组必须声明 maxItems"))?;
+        if max > 100 || s["minItems"].as_u64().unwrap_or(0) > max {
+            return Err(invalid("数组最多 100 项"));
+        }
+        check_schema(&s["items"])?;
+    }
+    for key in ["minLength", "maxLength", "minItems", "maxItems"] {
         if let Some(v) = s.get(key)
             && v.as_u64().is_none()
         {
@@ -107,6 +119,17 @@ pub fn validate(s: &Value, v: &Value) -> AppResult<()> {
             }
             for (k, v) in obj {
                 validate(&props[k], v)?;
+            }
+        }
+        "array" => {
+            let a = v.as_array().ok_or_else(|| invalid("值必须是数组"))?;
+            if a.len() < s["minItems"].as_u64().unwrap_or(0) as usize
+                || a.len() > s["maxItems"].as_u64().unwrap_or(0) as usize
+            {
+                return Err(invalid("数组长度超限"));
+            }
+            for item in a {
+                validate(&s["items"], item)?;
             }
         }
         "string" => {
