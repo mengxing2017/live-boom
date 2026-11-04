@@ -11,16 +11,31 @@ use tauri::{Manager, WindowEvent};
 
 pub struct Host {
     pub coordinator: Coordinator,
+    pub media: play_runtime::media::MediaStore,
     pub plugins: Mutex<PluginManager>,
+    pub metrics_at: Mutex<std::time::Instant>,
+    pub preview_at: Mutex<std::time::Instant>,
     _instance_lock: std::fs::File,
 }
 pub const REGISTRY: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../plugins/registry/dist/plugin.lbplug"
 ));
-pub const WORKSHOP: &[u8] = include_bytes!(concat!(
+pub const PRINTER: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../plugins/workshop-2d/dist/plugin.lbplug"
+    "/../../../plugins/printer-3d/dist/plugin.lbplug"
+));
+const LEGACY_REGISTRY: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../compatibility/plugins/community.registry-1.0.0.lbplug"
+));
+const LEGACY_WORKSHOP: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../compatibility/plugins/community.workshop-2d-1.0.0.lbplug"
+));
+const LEGACY_PRINTER: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../compatibility/plugins/community.printer-3d-1.0.0.lbplug"
 ));
 pub fn run() {
     // Tauri can inject its bridge into subframes. Window labels alone are insufficient.
@@ -31,13 +46,20 @@ pub fn run() {
     let commands: Box<dyn Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync> =
         Box::new(tauri::generate_handler![
             ipc::snapshot,
+            ipc::snapshot_changes,
             ipc::plugins,
             ipc::host_command,
             ipc::report_result,
             ipc::prepare_task,
-            ipc::plugin_service
+            ipc::plugin_service,
+            ipc::session_service,
+            ipc::preview_frame,
+            ipc::import_media,
+            ipc::export_png,
+            ipc::export_preview
         ]);
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .append_invoke_initialization_script(initialization)
         .setup(|app| {
             let data = app.path().app_data_dir()?;
@@ -55,10 +77,16 @@ pub fn run() {
                 data.join("plugins"),
                 cfg!(debug_assertions)
                     && std::env::var("LIKEBOOM_ALLOW_UNSIGNED").as_deref() == Ok("1"),
-                vec![hash(REGISTRY), hash(WORKSHOP)],
+                vec![
+                    hash(REGISTRY),
+                    hash(PRINTER),
+                    hash(LEGACY_REGISTRY),
+                    hash(LEGACY_WORKSHOP),
+                    hash(LEGACY_PRINTER),
+                ],
             )?;
             let first = plugins.install(REGISTRY)?;
-            plugins.install(WORKSHOP)?;
+            plugins.install(PRINTER)?;
             let first_run = !data.join("likeboom.sqlite").exists();
             let coordinator =
                 Coordinator::new(Box::new(SqliteStore::open(&data.join("likeboom.sqlite"))?))?;
@@ -67,18 +95,37 @@ pub fn run() {
             }
             app.manage(Host {
                 coordinator,
+                media: play_runtime::media::MediaStore(data.join("media")),
                 plugins: Mutex::new(plugins),
+                metrics_at: Mutex::new(std::time::Instant::now()),
+                preview_at: Mutex::new(std::time::Instant::now()),
                 _instance_lock: instance_lock,
+            });
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    let host = app_handle.state::<Host>();
+                    if host.coordinator.tick_demo().unwrap_or(false) {
+                        ipc::emit_snapshot(&app_handle, &host);
+                    }
+                }
             });
             Ok(())
         })
         .register_uri_scheme_protocol("lbplugin", |context, request| {
-            // This scheme serves only verified, installed HTML documents to the display WebView.
+            // Both surfaces serve only verified current-plugin documents, in opaque sandboxes.
             let result = (|| -> AppResult<String> {
-                if context.webview_label() != "display" {
-                    return Err(AppError::new("FORBIDDEN", "只允许展示窗口"));
+                let path = request.uri().path().trim_start_matches('/');
+                let control = path.ends_with("/control");
+                let digest = if control {
+                    path.strip_suffix("/control").unwrap_or("")
+                } else {
+                    path
+                };
+                if context.webview_label() != if control { "control" } else { "display" } {
+                    return Err(AppError::new("FORBIDDEN", "入口与窗口角色不匹配"));
                 }
-                let digest = request.uri().path().trim_start_matches('/');
                 let host = context.app_handle().state::<Host>();
                 let snapshot = host.coordinator.snapshot(false)?;
                 if snapshot.active.as_ref().is_none_or(|p| p.digest != digest) {
@@ -87,7 +134,7 @@ pub fn run() {
                 host.plugins
                     .lock()
                     .map_err(|_| AppError::new("STATE_UNAVAILABLE", "插件锁错误"))?
-                    .document(digest)
+                    .document_for(digest, control)
             })();
             let (status, body) = match result {
                 Ok(html) => (200, html),
