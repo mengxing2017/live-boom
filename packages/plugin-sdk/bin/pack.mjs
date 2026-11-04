@@ -18,7 +18,7 @@ export async function pack(directory, output, keyPath) {
   };
   const add = (name, data) => { if (!/^[A-Za-z0-9._/-]+$/.test(name) || name.split('/').some(p => !p || p === '.' || p === '..')) throw new Error('Unsafe package path'); files[name] = Buffer.from(data).toString('base64'); };
   add('manifest.json', JSON.stringify(manifest));
-  for (const name of [manifest.inputSchema, manifest.configSchema]) add(name, await localRead(name));
+  for (const name of [manifest.inputSchema, manifest.configSchema, manifest.planSchema, manifest.presentationSchema, manifest.examples].filter(Boolean)) add(name, await localRead(name));
   // Default self-contained builder; a plugin may instead supply a prebuilt, offline HTML document.
   let html;
   try { html = (await localRead(manifest.entry)).toString('utf8'); }
@@ -30,6 +30,7 @@ export async function pack(directory, output, keyPath) {
     html = `<html lang="zh-CN"><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#10182d;color:white}main{height:100%;display:grid;place-content:center;text-align:center}h1{font-size:clamp(32px,7vw,90px);overflow-wrap:anywhere}p{color:#acbbdf}</style><main id="stage"></main><script>${sdk}\nconst LikeBoom=Object.freeze({connect:connectPlugin});\n${code}</script></html>`;
   }
   add(manifest.entry, html);
+  if (manifest.controlEntry) add(manifest.controlEntry, await localRead(manifest.controlEntry));
   async function assets(dir) {
     let entries;try { entries = await readdir(dir, { withFileTypes: true }); } catch (e) { if (e.code === 'ENOENT') return; throw e; }
     for (const item of entries) {

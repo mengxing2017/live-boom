@@ -1,6 +1,6 @@
 {
   "name": "@likeboom/plugin-sdk",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -9,7 +9,8 @@
       "default": "./src/client.js"
     },
     "./protocol": "./src/protocol.ts",
-    "./pack": "./bin/pack.mjs"
+    "./pack": "./bin/pack.mjs",
+    "./control": "./src/control.ts"
   },
   "bin": {
     "likeboom-plugin": "./bin/pack.mjs"
