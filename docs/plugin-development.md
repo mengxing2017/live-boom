@@ -23,7 +23,7 @@ customer-play/
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "dependencies": { "@likeboom/plugin-sdk": "file:vendor/likeboom-plugin-sdk-0.2.0.tgz" },
+  "dependencies": { "@likeboom/plugin-sdk": "file:vendor/likeboom-plugin-sdk-0.2.1.tgz" },
   "scripts": { "build": "likeboom-plugin . dist/customer.lbplug" }
 }
 ```
@@ -54,9 +54,9 @@ LikeBoom.connect(services => {
 
 打包器仅收集 manifest、schema、入口、assets 与许可声明，不收集源码目录、私钥、默认 source map。assets 下的 `.map/.pem/.key` 和符号链接拒绝打包。密钥必须保存在私有 CI secrets 或仓库外。JS 可读性压缩不构成加密。
 
-`inputSchema/configSchema` 使用首期受限 schema 方言，**不是完整 JSON Schema**：支持 object/string/integer/number/boolean、properties/required/additionalProperties:false、title/description/default、enum、minLength/maxLength、minimum/maximum。每层至多 32 字段；不支持数组、$ref、pattern、oneOf 等，未知关键字拒绝安装。文本按 Unicode 字素簇计数；宿主拒绝控制字符、类型错误和未声明字段。单次输入/配置至多 64 KiB。根输入和配置应是对象，公共 UI 自动生成相应字段。
+`inputSchema/configSchema` 使用首期受限 schema 方言，**不是完整 JSON Schema**：支持 object/string/integer/number/boolean/array、properties/required/additionalProperties:false、title/description/default、enum、minLength/maxLength、minimum/maximum。每层至多 32 字段；数组必须声明 items/maxItems（最多 100 项），可声明 minItems；不支持 $ref、pattern、oneOf 等，未知关键字拒绝安装。文本按 Unicode 字素簇计数；宿主拒绝控制字符、类型错误和未声明字段。单次输入/配置至多 64 KiB。根输入和配置应是对象，公共 UI 自动生成相应字段。
 
-prepare 只返回经过相同 inputSchema 验证的规整输入，成功后由 Rust 冻结存储，再发 play；它不是允许任意结构的通用计划引擎。重试已准备的任务复用冻结输入，不重新随机生成计划。宿主统一处理 task_id、epoch、instance、队列、容量、幂等、来源标识和结果；插件不声明自己的可信来源。
+未声明 plan.v1 时，prepare 返回经过同一 inputSchema 验证的规整输入；声明 plan.v1/planSchema 后返回独立冻结计划。两种路径均由 Rust 校验、存储后再发 play。重试已准备的任务复用冻结输入，不重新随机生成计划。宿主统一处理 task_id、epoch、instance、队列、容量、幂等、来源标识和结果；插件不声明自己的可信来源。
 
 必需权限为 `task.current.read/task.result.report`，可选 `storage.own/assets.own`，不支持网络、文件系统、系统进程或任意 SQL。进度目前预留消息，不进入权威任务状态。
 
@@ -76,8 +76,42 @@ pnpm exec likeboom-plugin . dist/customer.lbplug /secure/publisher.pem
 
 ## 版本、回退与卸载
 
-新版本并排安装，队列与历史固定记录完整插件版本和摘要。切换玩法或配置要求当前和待执行队列为空。启用旧版本即可回退，其原状态保留。相同 stateSchemaVersion 可通过控制台显式复制到空目标版本；禁止覆盖和跨玩法复制。跨 schema 的任意迁移脚本暂不开放，需在以后增加受限迁移协议，不能静默继承不兼容数据。
+新版本并排安装，队列与历史固定记录完整插件版本和摘要。切换玩法/版本要求当前和待执行队列为空；configure 只更新新任务规则，不重写已接收任务。presentation 独立即时更新。启用旧版本即可回退，其原状态保留。相同 stateSchemaVersion 可通过控制台显式复制到空目标版本；禁止覆盖和跨玩法复制。跨 schema 支持显式键映射与默认值：同发布者、同玩法、空目标、单项 64 KiB/总计 1 MiB，最多 100 键；来源完整保留并记录迁移审计。复杂值变换由插件作者先生成并审查迁移数据，不在宿主执行任意脚本。
 
 被启用、当前/待执行/历史任务引用的版本拒绝卸载。停用并清空历史/开始新场后可卸载；卸载包保留命名空间数据，没有自动删除客户数据的操作。
 
 故障时失败、中断与完成分别记录。展示窗丢失或应用重启不会自动重播运行中任务，需要用户明确重试；应用重启后待执行队列也先暂停，展示就绪后手动继续。宿主当前只允许一个实例打开同一数据目录。
+
+
+## 0.2.1 可选扩展
+
+3D 示例见 `plugins/printer-3d`。新增能力的插件声明最低 `hostVersion: ">=0.2.1 <0.3.0"`，基础 `sdkApi: "1"` 保留。签名 manifest 的 `capabilities` 只接受：
+
+| 能力 | 使用方式 |
+| --- | --- |
+| session.v1 | `connectPlugin(factory,{session: async (services,config)=>sessionLifecycle})`；session 一次创建，任务 factory 仍每任务创建；task dispose 不销毁 session |
+| plan.v1 | 声明 planSchema；prepare 返回 `{units:[...], ...}`；units 长度必须等于宿主预留工作量。play 第三个参数含 plan/completedUnits/source；逐份 `request('units.complete',{index})`，全部完成才 result |
+| presentation.v1 | 声明 presentationSchema；会话 `presentation(value)` 接收完整显示设置；`configure(config)` 接收新业务配置，仅用于显示当前规则，任务仍使用自己的 config |
+| preferences.own.v1 | session `request('preferences.get'/'preferences.set',{key,value?})`；绑定真实输出实例和当前插件版本，空闲可用；不伪造 task |
+| media.own.v1 | session `request('media.resolve',{reference})` 获取宿主导入且属于本插件的图片 data URI |
+| audio.own.v1 | task `audio.play`（自身包 path、volume、loop）、audio.stop、speech.say（text/lang/id/rate/volume/voice）；声音由可信输出顶层唯一播放，需用户在该窗口解锁，只选本地语音 |
+| preview.frames.v1 | session `frame(JPEG Blob)`，640×360、256 KiB、最多 5 FPS；独立二进制消息，不提升普通 RPC 限额。`metrics({...})` 至多 4 KiB、宿主最多每秒发布一次 |
+| export.png.v1 | session `exportPng(ArrayBuffer)`，PNG 最大 2 MiB、2048×2048；转到控制台预览，用户确认后原生保存对话框选址 |
+
+可选 manifest `workUnitsField` 指定输入中的 1–100 有界整数字段；同时声明 `workUnitsSelectorField/workUnitsRulesField` 时，宿主按输入选择器索引配置规则表，规则字段为 enabled 和 units（1–10），工作量为输入数量乘规则 units。宿主只认识通用表结构，不内置事件/礼物名称。缺省工作量为 1。普通优先任务仅调整等待队列顺序。
+
+可选 `examples` 指向 `{name,input}[]` JSON，最多 12 项，每项经 inputSchema 校验；模板只填表，不自动提交，也不能设置可信来源。打包器会携带该文件及扩展 schema。
+
+session 生命周期可实现 `presentation/configure/control/dispose`；公共镜头代理通过受限 control 消息传递，不转移任务执行权。资源应由插件自己的 bundler 打入 IIFE，素材走 assets.resolve，不使用相对网络 fetch。像素、音效、规则图和指标均不是完成凭证。
+
+旧插件可以继续保持 v1 factory 和 prepare/input 路径。`compatibility/plugins` 保留两份 1.0.0 原包，宿主只对其精确摘要保留信任；新代码不可复用旧版本号覆盖内容。改编 MIT 代码的闭源交付仍须携带相应完整许可。
+
+## 可选独立操作台（宿主 0.2.2 起）
+
+插件可声明 `controlEntry: "web/control.html"` 及 `control.v1`，两者必须同时提供。入口是包内完整离线 HTML，打包器将其加入完整性清单和签名。没有该声明时继续使用公共 Schema 表单。私有玩法自己的 React 组件、文案和样式随私有插件构建，不由公共宿主 import。
+
+操作台位于 `sandbox="allow-scripts"` 的独立 iframe，只连接 `@likeboom/plugin-sdk/control` 的 MessagePort。客户端应在文档 load 前注册连接监听（React 可通过同步根提交及 layout effect 初始化）。SDK 提供 `connectControl(onEvent)`、`request(method,params,bytes?)`、`resize(height)` 与 `dispose()`。事件包含裁剪至当前插件的 state、JPEG preview、metrics、export.ready；历史最多 100 条，不含其他玩法任务。组件释放时关闭连接；预览使用有界 JPEG 的 data URL，避免 opaque iframe 的 Blob URL 兼容问题。
+
+请求限额：每秒 40 条，最多 8 个并发，普通参数 64 KiB；图像导入独立 ArrayBuffer 最大 8 MiB，由原生再次校验。可用 method 为 command、media.import、voices、export.review。command 仅开放本地提交、配置、画面、队列控制、当前插件偏好与媒体读取、许可查看等固定名单；不能安装/卸载/启用插件、信任发布者、重启应用、任意调用 native 或保存任意路径。破坏性清理由可信宿主确认，PNG 保存须在可信宿主预览并点击保存。
+
+操作台和展示窗分别由 control/display 角色读取指定入口，非当前插件或角色不匹配拒绝服务。操作台 CSP 与展示文档一致，只允许 data 图像，仍禁网、禁子框架、禁表单导航、禁 eval。控制台预览不启动玩法执行器，不维护第二个任务队列，也不播音。跨系统原生 WebView 隔离仍需目标系统发布验收。

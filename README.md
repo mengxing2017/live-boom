@@ -1,6 +1,6 @@
 # LikeBoom
 
-Rust + React 本地互动娱乐桌面宿主。公共服务运行在 Tauri 进程内，不依赖云服务；玩法以可离线安装的 `.lbplug` 插件交付。首期提供昵称登记与二维制作两个示例，不包含平台采集、支付或会员流程。
+Rust + React 本地互动娱乐桌面宿主。公共服务运行在 Tauri 进程内，不依赖云服务；玩法以可离线安装的 `.lbplug` 插件交付。提供昵称登记与 3D 制作台两个示例，不包含平台采集、支付或会员流程。
 
 ```text
 apps/desktop/              唯一桌面应用：React 入口、Tauri IPC/窗口适配
@@ -10,7 +10,8 @@ crates/play-runtime/       唯一调度器、持久化、插件校验和权限
 packages/plugin-sdk/      传输协议、隔离文档客户端、独立插件打包器
 packages/desktop-ui/      通过 transport 注入的公共控制台和展示宿主
 plugins/registry/         开源示例：昵称登记
-plugins/workshop-2d/      开源示例：二维制作
+plugins/printer-3d/       开源示例：3D 制作台
+compatibility/            退役二维示例源码与旧版本精确包（非活跃子项目）
 ```
 
 共 8 个工作区包（3 个 Rust 库、2 个 JS 公共包、1 个桌面应用、2 个玩法）；桌面应用的 npm 与 Cargo 清单属于同一个应用。闭源玩法单独建仓，一仓一包，不增加宿主、服务或客户分支。
@@ -64,8 +65,12 @@ Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安�
 
 ## 插件与验证
 
+- [3D 制作台使用、恢复与待验项目](docs/printer-3d.md)
+- [迁移实施记录](report/3d-printer-live功能迁移实施记录.md)
 - [插件开发、私有仓库和签名交付](docs/plugin-development.md)
 - [重构架构、验证结果和发布验收](docs/refactoring-validation.md)
 - [架构设计基线](report/公共服务与玩法插件架构方案.md)
 
 公共仓库自有代码与两个示例采用 [MIT](LICENSE)。闭源插件在独立仓库自行声明许可证；交付包保留 SDK 许可及所用依赖声明。这里的隔离是源码依赖、服务权限与交付边界，分发到客户机器的 JS/素材仍可被提取，不提供源码保密或 DRM 保证。
+
+3D 插件 **1.1.0** 包含独立 React 操作台；旧 1.0.0 需在公共宿主管理中显式切换并启用新版。操作说明见 [3D 制作台](docs/printer-3d.md)，界面和样式随插件交付，公共宿主不导入玩法专属组件。
