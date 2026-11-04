@@ -13,3 +13,4 @@ ring = "0.17.14"
 base64 = "0.22.1"
 semver = "1"
 unicode-segmentation.workspace = true
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
