@@ -1,0 +1,17 @@
+{
+  "id": "community.workshop-2d",
+  "name": "二维制作台",
+  "version": "1.0.0",
+  "sdkApi": "1",
+  "hostVersion": ">=0.2.0 <0.3.0",
+  "entry": "web/index.html",
+  "inputSchema": "schemas/input.json",
+  "configSchema": "schemas/config.json",
+  "stateSchemaVersion": 1,
+  "permissions": [
+    "task.current.read",
+    "task.result.report",
+    "storage.own"
+  ],
+  "publisher": "likeboom-examples"
+}

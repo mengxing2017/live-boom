@@ -1,0 +1,11 @@
+[workspace]
+members = ["apps/desktop/src-tauri", "crates/play-core", "crates/play-contracts", "crates/play-runtime"]
+default-members = ["crates/play-core", "crates/play-contracts", "crates/play-runtime"]
+resolver = "2"
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-segmentation = "1"

@@ -1,0 +1,13 @@
+{
+  "name": "@likeboom/play-registry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@likeboom/plugin-sdk": "workspace:*"
+  },
+  "scripts": {
+    "build": "node ../../tools/plugin-pack/pack.mjs ."
+  },
+  "license": "MIT"
+}

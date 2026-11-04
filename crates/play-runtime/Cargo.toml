@@ -1,0 +1,15 @@
+[package]
+license = "MIT"
+name = "play-runtime"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+play-core = { path = "../play-core" }
+play-contracts = { path = "../play-contracts" }
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+ring = "0.17.14"
+base64 = "0.22.1"
+semver = "1"
+unicode-segmentation.workspace = true

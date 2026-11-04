@@ -1,0 +1,23 @@
+{
+  "name": "@likeboom/plugin-sdk",
+  "version": "0.2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": {
+      "types": "./src/client.d.ts",
+      "default": "./src/client.js"
+    },
+    "./protocol": "./src/protocol.ts",
+    "./pack": "./bin/pack.mjs"
+  },
+  "bin": {
+    "likeboom-plugin": "./bin/pack.mjs"
+  },
+  "files": [
+    "src",
+    "bin",
+    "LICENSE"
+  ],
+  "license": "MIT"
+}

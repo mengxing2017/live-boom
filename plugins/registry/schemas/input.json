@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "title": "昵称",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "message": {
+      "type": "string",
+      "title": "留言",
+      "maxLength": 100
+    }
+  },
+  "required": [
+    "nickname"
+  ]
+}

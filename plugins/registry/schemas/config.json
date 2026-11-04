@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "duration": {
+      "type": "integer",
+      "title": "动画时长（秒）",
+      "minimum": 2,
+      "maximum": 15,
+      "default": 4
+    }
+  },
+  "required": [
+    "duration"
+  ]
+}

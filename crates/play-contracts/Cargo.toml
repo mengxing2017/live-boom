@@ -1,0 +1,9 @@
+[package]
+license = "MIT"
+name = "play-contracts"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+ts-rs = { version = "11", features = ["serde-compat"] }

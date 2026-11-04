@@ -1,0 +1,17 @@
+[package]
+license = "MIT"
+name = "likeboom"
+version.workspace = true
+edition.workspace = true
+description = "LikeBoom 公共插件宿主"
+[lib]
+name = "likeboom_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+play-contracts = { path = "../../../crates/play-contracts" }
+play-runtime = { path = "../../../crates/play-runtime" }
+tauri = { version = "2", features = [] }
+serde.workspace = true
+serde_json.workspace = true

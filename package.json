@@ -1,0 +1,23 @@
+{
+  "name": "likeboom-workspace",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @likeboom/desktop-app dev",
+    "build": "pnpm plugins:build && pnpm check && pnpm --filter @likeboom/desktop-app build",
+    "check": "tsc --noEmit -p tsconfig.json && node tools/check-boundaries.mjs",
+    "test": "pnpm build && node --test tests/*.test.mjs",
+    "test:rust": "cargo test",
+    "gen:types": "cargo test -p play-contracts export_bindings",
+    "plugins:build": "node tools/plugin-pack/pack.mjs plugins/registry && node tools/plugin-pack/pack.mjs plugins/workshop-2d",
+    "tauri": "pnpm plugins:build && pnpm --filter @likeboom/desktop-app tauri",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
+  },
+  "license": "MIT"
+}

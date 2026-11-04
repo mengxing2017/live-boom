@@ -1,0 +1,31 @@
+# Rust + React applications
+.devbox/
+/backend/target/
+/frontend/dist/
+*.tsbuildinfo
+/coverage/
+
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+target/
+coverage/
+.pnpm-store/
+platform/secrets/
+*.log
+report/
+
+# Python migration tools
+**/__pycache__/
+*.pyc
+
+# VitePress documentation cache (dist/node_modules already ignored)
+/docs/.vitepress/cache/
+
+/docs/.vitepress/caddy/
+
+# Plugin signing keys belong outside the public repository
+*.pem
+*.key

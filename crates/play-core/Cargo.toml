@@ -1,0 +1,6 @@
+[package]
+license = "MIT"
+name = "play-core"
+version.workspace = true
+edition.workspace = true
+

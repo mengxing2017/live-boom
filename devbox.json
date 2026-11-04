@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.2/.schema/devbox.schema.json",
+  "packages": {
+    "rustup": "1.29.0",
+    "nodejs": "22",
+    "pnpm": "11.22.0",
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#pkg-config": {},
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#openssl.bin": {},
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#openssl.dev": {},
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#openssl.out": {},
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#dbus.dev": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#dbus.out": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#gtk3.dev": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#gtk3.out": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#webkitgtk_4_1.dev": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#webkitgtk_4_1.out": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#librsvg.dev": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#librsvg.out": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    }
+  },
+  "shell": {
+    "init_hook": [
+      "rustup run 1.98.0 rustc --version >/dev/null 2>&1 || rustup toolchain install 1.98.0",
+      "rustup default 1.98.0"
+    ],
+    "scripts": {
+      "check": "pnpm check && cargo check",
+      "test-unit": "cargo test",
+      "fmt": "cargo fmt --all",
+      "fmt:check": "cargo fmt --all --check",
+      "web": "pnpm dev",
+      "desktop": "pnpm tauri dev",
+      "desktop:check": "pnpm plugins:build && cargo check -p likeboom",
+      "desktop:verify": "pnpm plugins:build && cargo build -p likeboom && node tools/verify-linux-runtime.mjs"
+    }
+  },
+  "nixpkgs": {
+    "commit": "8edc0c72e3a38faf5434e40d1f19431125fe4b30"
+  }
+}
