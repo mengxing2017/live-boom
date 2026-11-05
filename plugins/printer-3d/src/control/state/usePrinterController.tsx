@@ -20,11 +20,8 @@ export function usePrinterController() {
     const [layoutReset, setLayoutReset] = useState(0), [ruleKey, setRuleKey] = useState('manual'), [showLog, setShowLog] = useState(false);
     const layoutStore = useMemo(() => ({ load: () => bridge.current?.request('layout.load') ?? Promise.resolve(null), save: (layout: Record<string, number>) => bridge.current?.request('layout.save', {layout}) ?? Promise.resolve(null) }), []);
     const [mediaImages,setMediaImages]=useState<Record<string,string>>({});
-    const [state, setState] = useState<ControlState | null>(null), [preview, setPreview] = useState(''), [metrics, setMetrics] = useState<Fields>({}), [exportReady, setExportReady] = useState(false);
-    const bridge = useRef<ReturnType<typeof connectControl> | null>(null), image = useRef(''), pendingImage=useRef(''), drag = useRef<{
-        x: number;
-        y: number;
-    } | null>(null);
+    const [state, setState] = useState<ControlState | null>(null), [metrics, setMetrics] = useState<Fields>({}), [exportReady, setExportReady] = useState(false);
+    const bridge = useRef<ReturnType<typeof connectControl> | null>(null);
     const [config, setConfig] = useState<Config | null>(null), [presentation, setPresentation] = useState<Fields>({}), presentationRef = useRef<Fields>({});
     const [nickname, setNickname] = useState('橘子汽水'), [content, setContent] = useState('portrait'), [media, setMedia] = useState(''), [quantity, setQuantity] = useState(1), [event, setEvent] = useState('manual'), [priority, setPriority] = useState(false);
     const [feedback, setFeedback] = useState(''), [busy, setBusy] = useState(false), [log, setLog] = useState<string[]>([]), [interval, setIntervalValue] = useState(30), [filter, setFilter] = useState('all');
@@ -50,19 +47,10 @@ export function usePrinterController() {
                 setMetrics(data.value);
             else if (data.type === 'export.ready')
                 setExportReady(true);
-            else if (data.type === 'preview') {
-                // One undecoded frame at a time: never revoke the image React is about to commit.
-                if(pendingImage.current)return;
-                const bytes=new Uint8Array(data.bytes);let binary='';
-                for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
-                const url='data:image/jpeg;base64,'+btoa(binary);
-                if(url===image.current)return; // A paused scene may send identical frames; no load event would follow.
-                pendingImage.current=url;
-                setPreview(url);
-            }
+
         });
         bridge.current = client;
-        return () => { client.dispose(); bridge.current = null; image.current='';pendingImage.current=''; };
+        return () => { client.dispose(); bridge.current = null; };
     }, []);
     const configKey = JSON.stringify(state?.config), presentationKey = JSON.stringify(state?.presentation);
     useEffect(() => { if (state)
@@ -72,7 +60,6 @@ export function usePrinterController() {
         setPresentation(value);
         presentationRef.current = value;
     } }, [presentationKey]);
-    const previewLoaded=(url:string,ok:boolean)=>{if(url!==pendingImage.current)return;if(ok)image.current=url;else setPreview(image.current);pendingImage.current='';};
     const request = (method: string, params: Fields = {}, bytes?: ArrayBuffer) => bridge.current?.request(method, params, bytes) ?? Promise.reject(new Error('尚未连接'));
     const command = (name: string, args: Fields = {}) => request('command', { name, args });
     const record = (text: string) => { setFeedback(text); setLog(lines => [`${new Date().toLocaleTimeString()} · ${text}`, ...lines].slice(0, 20)); };
@@ -121,6 +108,6 @@ export function usePrinterController() {
         size: string;
     }[] : [];
     const row = (task: ControlTask, history = false) => <li key={`${task.id}/${task.epoch}`} className="task-row"><Avatar name={task.input.nickname} src={mediaImages[String(task.input.media??'')]}/><div className="task-copy"><strong>{String(task.input.nickname ?? '访客')}</strong><small>{sourceName(task.source)} · {eventName(task.input.event)} · {task.completed_units}/{task.work_units} 份{task.priority ? ' · 优先' : ''}</small>{history && <small>{task.created_at ? new Date(task.created_at).toLocaleTimeString() : '旧版时间未记录'} · {({ completed: '已完成', failed: '失败', interrupted: '中断', cancelled: '已取消', running: '制作中', queued: '等待中' })[task.status]}{units(task).slice(0, task.completed_units).map((u, i) => <span key={i}> · {u.size === 'large' ? '大' : '小'}图 {u.score}分</span>)}</small>}</div>{history ? ['failed', 'interrupted'].includes(task.status) && <button onClick={() => void run(() => command('retry', { id: task.id }), '已按冻结计划重试')}>重试</button> : <button className="quiet danger" aria-label={`移除${String(task.input.nickname)}`} onClick={() => void run(() => command('cancel', { id: task.id }))}>移除</button>}</li>;
-    return {current,state,config,preview,previewLoaded,drag,run,command,previewControl,nickname,setNickname,content,setContent,event,setEvent,quantity,setQuantity,priority,setPriority,media,mediaImages,busy,activeRule,submit,presentation,updatePresentation,metrics,setMetrics,camera,viewName,setViewName,views,loadViews,voices,setVoices,request,dirty,rules,setConfig,ruleKey,setRuleKey,exportReady,setExportReady,people,setMedia,importFiles,interval,setIntervalValue,log,filter,setFilter,mediaFiles,setMediaFiles,license,setLicense,appliedRules,scenario,row,done,queueUnits,layoutReset,layoutStore,showLog,setShowLog,feedback,input};
+    return {current,state,config,run,command,previewControl,nickname,setNickname,content,setContent,event,setEvent,quantity,setQuantity,priority,setPriority,media,mediaImages,busy,activeRule,submit,presentation,updatePresentation,metrics,setMetrics,camera,viewName,setViewName,views,loadViews,voices,setVoices,request,dirty,rules,setConfig,ruleKey,setRuleKey,exportReady,setExportReady,people,setMedia,importFiles,interval,setIntervalValue,log,filter,setFilter,mediaFiles,setMediaFiles,license,setLicense,appliedRules,scenario,row,done,queueUnits,layoutReset,layoutStore,showLog,setShowLog,feedback,input};
 }
 export type PrinterController = NonNullable<ReturnType<typeof usePrinterController>>;

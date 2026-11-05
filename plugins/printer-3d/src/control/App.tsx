@@ -27,7 +27,7 @@ function App() {
       {id:'history',label:'记录',content:<HistoryPanel controller={c}/>},
     ]}/>}/>
     {c.showLog&&<div className="event-panel" aria-label="事件面板">{c.log.length?c.log.map((line,i)=><div key={i}>{line}</div>):'暂无操作记录'}</div>}
-    <footer><p role="status" aria-live="polite">{c.feedback || '本地制作台已就绪'}</p><button aria-expanded={c.showLog} onClick={()=>c.setShowLog(v=>!v)}>事件 {c.log.length}</button><span>{String(c.metrics.fps??'--')} FPS · 监看预览</span></footer>
+    <footer><p role="status" aria-live="polite">{c.feedback || '本地制作台已就绪'}</p><button aria-expanded={c.showLog} onClick={()=>c.setShowLog(v=>!v)}>事件 {c.log.length}</button><span>{String(c.metrics.fps??'--')} FPS · 实际画面</span></footer>
   </div>;
 }
 flushSync(() => createRoot(document.getElementById('root')!).render(<App/>));

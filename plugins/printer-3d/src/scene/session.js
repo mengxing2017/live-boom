@@ -36,8 +36,7 @@ export async function createRendererSession(services, view) {
  const softbox=(w,h,x,y,z,power)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:new THREE.Color(power,power*.97,power*.92),side:THREE.DoubleSide}));m.position.set(x,y,z);m.lookAt(0,2,0);studio.add(m);};
  softbox(6,8,-6,6,4,5);softbox(3,7,6,4,1,3);softbox(7,3,0,9,-3,4);
  const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(studio,.06,.1,50);scene.environment=environment.texture;scene.environmentIntensity=.65;pmrem.dispose();studio.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
- let presentation={...PRESENTATION},views=[],active=null,products=[],disposed=false,paused=false,frame=0,last=performance.now(),nextAt=0,renderCount=0,statAt=last,measured=0,scaleLimit=2,lastPreview=0,previewBusy=false,previewEnabled=true,beltOffset=0,lastConfig=null;
- const preview=document.createElement('canvas');preview.width=640;preview.height=360;const pc=preview.getContext('2d');
+ let presentation={...PRESENTATION},views=[],active=null,products=[],disposed=false,paused=false,shown=true,frame=0,last=performance.now(),nextAt=0,renderCount=0,statAt=last,measured=0,scaleLimit=2,beltOffset=0,lastConfig=null;
  const prefs=await services.request('preferences.get',{key:'views'}).catch(()=>null);views=normalizeViews(prefs);
  const savedCamera=await services.request('preferences.get',{key:'camera'}).catch(()=>null);applyCamera(savedCamera);
  const savedPresentation=await services.request('preferences.get',{key:'presentation'}).catch(()=>null);
@@ -74,7 +73,7 @@ export async function createRendererSession(services, view) {
   if(t>=4.45&&!st.released){scene.attach(p.g);p.g.rotation.set(0,0,0);p.g.position.set(.25,.57*(1-p.factor)-.105,3.2);st.released=true;products.push(p);}
  }
  function tick(now){
-  if(disposed)return;frame=requestAnimationFrame(tick);if(now+.5<nextAt)return;nextAt=Math.max(nextAt+1000/presentation.fps,now);
+  if(disposed)return;frame=shown?requestAnimationFrame(tick):setTimeout(()=>tick(performance.now()),1000/30);if(now+.5<nextAt)return;nextAt=Math.max(nextAt+1000/presentation.fps,now);
   const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
   if(!paused){
    beltOffset+=dt*.21;machine.beltTexture.offset.x-=dt*.21/16.3;machine.rollers.forEach(r=>r.rotation.z-=dt*.21/.18);machine.beltLines.forEach((b,i)=>b.position.x=-4.3+(i*16.3/84+beltOffset)%16.3);
@@ -95,12 +94,12 @@ export async function createRendererSession(services, view) {
     }
    }else sayCaption(language().idle);
   }
-  machine.updateHoses();controls.update();output.render(scene,camera);renderCount++;
-  if(now-statAt>=2000){measured=renderCount*1000/(now-statAt);services.metrics({fps:Math.round(measured*10)/10,output:[renderer.domElement.width,renderer.domElement.height],internal:[output.target.width,output.target.height],samples:output.samples,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures});renderCount=0;statAt=now;if(presentation.smooth){const next=nextRenderScale(scaleLimit,measured,presentation.fps);if(next!==scaleLimit){scaleLimit=next;resize();}}}
-  if(previewEnabled&&!previewBusy&&now-lastPreview>=200){lastPreview=now;previewBusy=true;pc.fillStyle='#17222d';pc.fillRect(0,0,640,360);const s=Math.min(640/renderer.domElement.width,360/renderer.domElement.height),w=renderer.domElement.width*s,h=renderer.domElement.height*s;pc.drawImage(renderer.domElement,(640-w)/2,(360-h)/2,w,h);preview.toBlob(blob=>{if(blob&&!disposed)void services.frame(blob);previewBusy=false;},'image/jpeg',.6);}
+  machine.updateHoses();controls.update();if(shown){output.render(scene,camera);renderCount++;}
+  if(shown&&now-statAt>=2000){measured=renderCount*1000/(now-statAt);services.metrics({fps:Math.round(measured*10)/10,output:[renderer.domElement.width,renderer.domElement.height],internal:[output.target.width,output.target.height],samples:output.samples,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures});renderCount=0;statAt=now;if(presentation.smooth){const next=nextRenderScale(scaleLimit,measured,presentation.fps);if(next!==scaleLimit){scaleLimit=next;resize();}}}
  }
  frame=requestAnimationFrame(tick);
  return {
+  visibility(value){if(disposed||shown===value)return;if(shown)cancelAnimationFrame(frame);else clearTimeout(frame);shown=value;last=performance.now();statAt=last;renderCount=0;frame=shown?requestAnimationFrame(tick):setTimeout(()=>tick(performance.now()),1000/30);},
   presentation(value){if(Object.keys(value??{}).length)updatePresentation(value);},
   async control(value){
    if(!value||typeof value.op!=='string')return;
@@ -110,7 +109,6 @@ export async function createRendererSession(services, view) {
    if(value.op==='saveCamera'&&views.length<10){views.push({...cameraValue(),name:String(value.name??`Camera ${views.length+1}`).slice(0,32)});await services.request('preferences.set',{key:'views',value:views});}
    if(value.op==='loadCamera'&&Number.isInteger(value.index)){applyCamera(views[value.index]);saveCamera();}
    if(value.op==='deleteCamera'&&Number.isInteger(value.index)&&value.index>=0&&value.index<views.length){views.splice(value.index,1);await services.request('preferences.set',{key:'views',value:views});}
-   if(value.op==='preview')previewEnabled=value.enabled===true;
    if(value.op==='rules'&&lastConfig){const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=760;const c=canvas.getContext('2d');c.fillStyle='#f2ece1';c.fillRect(0,0,1000,760);c.fillStyle='#1c3541';c.font='bold 36px sans-serif';c.fillText('liveboom · 3D',40,60);c.font='25px sans-serif';ruleText(lastConfig,presentation.language).split('\n').forEach((line,i)=>c.fillText(line,40,120+i*45,920));canvas.toBlob(async blob=>{if(blob)services.exportPng(await blob.arrayBuffer());},'image/png');}
    if(value.op==='clearScenery'&&!active){for(const p of [...products])removeProduct(p);}
   },
@@ -127,7 +125,7 @@ export async function createRendererSession(services, view) {
   },
   speakDone(taskServices,plan,index,config){return audioStrategy(taskServices,()=>presentation,config,plan,index).say(`${plan.nickname} ${language().done}`,'done-'+index);},
   pause(){paused=true;active?.audio.stop();},resume(){paused=false;last=performance.now();if(active)active.audio.phase(active.phase==='printing'?'printing':'transfer');},cancel,
-  dispose(){disposed=true;cancel();cancelAnimationFrame(frame);observer.disconnect();controls.removeEventListener('end',saveCamera);controls.dispose();for(const p of [...products])removeProduct(p);
+  dispose(){disposed=true;cancel();if(shown)cancelAnimationFrame(frame);else clearTimeout(frame);observer.disconnect();controls.removeEventListener('end',saveCamera);controls.dispose();for(const p of [...products])removeProduct(p);
    const geometries=new Set(),materials=new Set(),textures=new Set();scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:o.material?[o.material]:[]){materials.add(m);for(const value of Object.values(m))if(value?.isTexture)textures.add(value);}});for(const g of geometries)g.dispose();for(const m of materials)m.dispose();for(const t of textures)t.dispose();environment.dispose();machine.dispose();output.dispose();renderer.domElement.removeEventListener('webglcontextlost',lost);renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();
   },
   diagnostics(){return {products:products.length,active:!!active,fps:measured,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,output:[renderer.domElement.width,renderer.domElement.height],internal:[output.target.width,output.target.height],samples:output.samples};}
