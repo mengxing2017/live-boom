@@ -20,7 +20,7 @@ use std::{
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
-        let p = std::env::temp_dir().join(format!("likeboom-{}", new_id()));
+        let p = std::env::temp_dir().join(format!("liveboom-{}", new_id()));
         std::fs::create_dir_all(&p).unwrap();
         Self(p)
     }
@@ -35,7 +35,7 @@ fn sample() -> Vec<u8> {
     let input = json!({"type":"object","additionalProperties":false,"properties":{"nickname":{"type":"string","minLength":1,"maxLength":32}},"required":["nickname"]});
     let config = json!({"type":"object","additionalProperties":false,"properties":{"duration":{"type":"integer","minimum":2,"maximum":15}},"required":["duration"]});
     let mut b = Bundle {
-        format: "likeboom.plugin.v1".into(),
+        format: "liveboom.plugin.v1".into(),
         files: Default::default(),
         integrity: Default::default(),
         signature: None,
@@ -450,7 +450,7 @@ fn compatible_upgrade_copies_state_without_overwrite_and_rollback_keeps_original
 fn duplicate_archive_paths_are_rejected() {
     let t = Temp::new();
     let m = PluginManager::new(t.0.clone(), true, vec![]).unwrap();
-    let malformed = br#"{"format":"likeboom.plugin.v1","files":{"x":"eA==","x":"eA=="},"integrity":{},"signature":null}"#;
+    let malformed = br#"{"format":"liveboom.plugin.v1","files":{"x":"eA==","x":"eA=="},"integrity":{},"signature":null}"#;
     assert_eq!(m.verify(malformed).err().unwrap().code, "INVALID_PACKAGE");
 }
 
@@ -644,26 +644,9 @@ fn schema_arrays_are_bounded_and_unknown_capabilities_fail_closed() {
     );
 }
 #[test]
-fn sqlite_v1_upgrade_has_a_backup_and_transactional_query_projections() {
+fn sqlite_checkpoint_has_transactional_query_projections() {
     let temp = Temp::new();
     let path = temp.0.join("db.sqlite");
-    let c = coordinator();
-    submit(&c, "old");
-    let state = c.snapshot(true).unwrap();
-    drop(state);
-    let mut memory = MemoryStore::default(); // create a real legacy checkpoint through the state port
-    memory.save("{\"version\":1,\"session_id\":\"legacy\",\"paused\":false,\"display_instance\":null,\"active\":null,\"config\":{},\"current\":null,\"queue\":[],\"history\":[],\"receipts\":{},\"namespaces\":{}}").unwrap();
-    let db = rusqlite::Connection::open(&path).unwrap();
-    db.execute_batch(
-        "CREATE TABLE runtime_state(id INTEGER PRIMARY KEY,schema_version INTEGER,body TEXT);",
-    )
-    .unwrap();
-    db.execute(
-        "INSERT INTO runtime_state VALUES(1,1,?1)",
-        [memory.load().unwrap().unwrap()],
-    )
-    .unwrap();
-    drop(db);
     let c = Coordinator::new(Box::new(SqliteStore::open(&path).unwrap())).unwrap();
     let p = printer();
     let config = schema_defaults(&p.config_schema);
@@ -676,12 +659,29 @@ fn sqlite_v1_upgrade_has_a_backup_and_transactional_query_projections() {
         .query_row("SELECT count(*) FROM runtime_work_items", [], |r| r.get(0))
         .unwrap();
     assert_eq!(count, 2);
-    assert!(std::fs::read_dir(&temp.0).unwrap().any(|e| {
-        e.unwrap()
-            .file_name()
-            .to_string_lossy()
-            .contains("before-v2-")
-    }));
+    assert_eq!(
+        db.query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        2
+    );
+    drop(db);
+    drop(c);
+    let persisted = Coordinator::new(Box::new(SqliteStore::open(&path).unwrap())).unwrap();
+    assert_eq!(persisted.snapshot(true).unwrap().history.len(), 1);
+
+    let unsupported = temp.0.join("unsupported.sqlite");
+    let db = rusqlite::Connection::open(&unsupported).unwrap();
+    db.execute_batch("CREATE TABLE runtime_state(id INTEGER PRIMARY KEY, schema_version INTEGER NOT NULL, body TEXT NOT NULL); INSERT INTO runtime_state VALUES(1,1,'{}'); PRAGMA user_version=1;").unwrap();
+    assert_eq!(
+        SqliteStore::open(&unsupported).err().unwrap().code,
+        "SCHEMA_MISMATCH"
+    );
+    assert_eq!(
+        db.query_row("SELECT body FROM runtime_state WHERE id=1", [], |r| r
+            .get::<_, String>(0))
+            .unwrap(),
+        "{}"
+    );
 }
 
 #[test]
@@ -830,7 +830,14 @@ fn printer_manifest_schemas_capabilities_and_examples_verify_together() {
     );
     let verified = manager.verify(&encode(&bundle)).unwrap();
     assert_eq!(verified.info.examples.len(), 9);
-    assert_eq!(verified.info.manifest.capabilities.len(), 9);
+    assert!(
+        verified
+            .info
+            .manifest
+            .capabilities
+            .iter()
+            .any(|c| c == "control.viewport.v1")
+    );
     assert!(verified.info.plan_schema.is_some());
 }
 
@@ -853,7 +860,7 @@ fn control_entry_requires_a_verified_capability_and_separate_document() {
         b"<main>PRIVATE_CONTROL_UI</main>",
     );
     assert!(manager.verify(&encode(&bundle)).is_err());
-    manifest["capabilities"] = json!(["control.v1"]);
+    manifest["capabilities"] = json!(["control.v1", "control.viewport.v1"]);
     replace(
         &mut bundle,
         "manifest.json",
@@ -869,6 +876,33 @@ fn control_entry_requires_a_verified_capability_and_separate_document() {
             .unwrap()
             .contains("PRIVATE_CONTROL_UI")
     );
+    manifest["capabilities"] = json!(["control.v1"]);
+    replace(
+        &mut bundle,
+        "manifest.json",
+        &serde_json::to_vec(&manifest).unwrap(),
+    );
+    assert_eq!(
+        manager.verify(&encode(&bundle)).err().unwrap().code,
+        "INVALID_MANIFEST"
+    );
+    manifest["capabilities"] = json!(["control.viewport.v1"]);
+    replace(
+        &mut bundle,
+        "manifest.json",
+        &serde_json::to_vec(&manifest).unwrap(),
+    );
+    assert_eq!(
+        manager.verify(&encode(&bundle)).err().unwrap().code,
+        "INVALID_MANIFEST"
+    );
+    manifest["capabilities"] = json!(["control.v1", "control.viewport.v1"]);
+    replace(
+        &mut bundle,
+        "manifest.json",
+        &serde_json::to_vec(&manifest).unwrap(),
+    );
+    assert!(manager.verify(&encode(&bundle)).is_ok());
     manifest["controlEntry"] = json!("../control.html");
     replace(
         &mut bundle,
