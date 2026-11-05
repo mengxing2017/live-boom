@@ -17,7 +17,14 @@ export interface PluginLifecycle<Input, Config, Plan = Input> {
   restore?(snapshot: unknown): void;
   dispose?(): void;
 }
+export interface SessionLifecycle {
+  configure?(config: Record<string, unknown>): void | Promise<void>;
+  presentation?(value: Record<string, unknown>): void | Promise<void>;
+  visibility?(visible: boolean): void;
+  control?(value: unknown): void;
+  dispose?(): void;
+}
 export function connectPlugin<Input = Record<string, unknown>, Config = Record<string, unknown>, Plan = Input>(
   factory: (services: PluginServices) => PluginLifecycle<Input, Config, Plan> | Promise<PluginLifecycle<Input, Config, Plan>>,
-  options?: { session: (services: SessionServices, config?: Record<string, unknown>) => {presentation?(value: Record<string, unknown>): void | Promise<void>; control?(value: unknown): void; dispose?(): void} | Promise<{presentation?(value: Record<string, unknown>): void | Promise<void>; control?(value: unknown): void; dispose?(): void}> },
+  options?: { session: (services: SessionServices, config?: Record<string, unknown>) => SessionLifecycle | Promise<SessionLifecycle> },
 ): () => void;

@@ -48,3 +48,24 @@ export function InspectorTabs({ items }: { items: { id: string; label: string; c
 export function Modal({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose(): void }) {
   return <Dialog.Root open={open} onOpenChange={value => { if (!value) onClose(); }}><Dialog.Portal><Dialog.Overlay className="lb-dialog-overlay"/><Dialog.Content className="lb-dialog" aria-describedby={undefined}><Dialog.Title>{title}</Dialog.Title>{children}<Dialog.Close asChild><button className="lb-dialog-close" aria-label="关闭对话框">×</button></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>;
 }
+
+/** Reserve a plugin-owned layout slot for a renderer owned by the trusted host. */
+export function RenderSurface({request}: {request(method: string, params: Record<string, unknown>): Promise<unknown>}) {
+  const element = useRef<HTMLDivElement>(null);
+  const requestRef = useRef(request); requestRef.current = request;
+  useEffect(() => {
+    let last = '', pending = false, active = true;
+    const update = () => {
+      const el = element.current; if (!el || pending) return;
+      const r = el.getBoundingClientRect();
+      const clear = [[.5,.5],[0,0],[1,0],[0,1],[1,1]].every(([x,y]) => {const hit=document.elementFromPoint(r.x+2+x*Math.max(0,r.width-4),r.y+2+y*Math.max(0,r.height-4));return !!hit&&(hit===el||el.contains(hit));});
+      const bounds = {x: r.x, y: r.y, width: r.width, height: r.height, visible: r.width > 0 && r.height > 0 && clear};
+      const key = JSON.stringify(bounds); if (key === last) return;
+      pending = true;
+      void requestRef.current('surface.bounds', bounds).then(() => { if (active) last = key; }).catch(() => {}).finally(() => { pending = false; });
+    };
+    update(); const timer = setInterval(update, 100);
+    return () => { active = false; clearInterval(timer); };
+  }, []);
+  return <div ref={element} className="lb-render-surface" aria-label="玩法画面占位区域" style={{width:'100%',height:'100%',minHeight:0,overflow:'hidden'}}/>;
+}

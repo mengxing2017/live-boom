@@ -9,6 +9,8 @@ export function connectPlugin(factory, options = {}) {
     const pending = new Map();
     const keyOf = c => `${c?.task_id}/${c?.epoch}/${c?.instance}`;
     const send = (type, data = {}) => port.postMessage({ api: '1', nonce, type, ...data });
+    const shortcut = event => { if ((event.ctrlKey || event.metaKey) && event.key === ',') {event.preventDefault();send('app.settings');} };
+    addEventListener('keydown',shortcut);
     const dispose = () => {
       generation++; contextKey = ''; activeContext=undefined; plugin?.dispose?.(); plugin = null;
       for (const p of pending.values()) { clearTimeout(p.timer); p.reject(new Error('Plugin disposed')); } pending.clear();
@@ -42,6 +44,7 @@ export function connectPlugin(factory, options = {}) {
         if (data.type === 'session') {
           if (!session && options.session) { sessionReady = Promise.resolve(options.session(sessionServices,data.config)).then(s => {session=s;}); await sessionReady; }
         } else if (data.type === 'configure') { await sessionReady; session?.configure?.(data.config); } else if (data.type === 'presentation') { await sessionReady; await session?.presentation?.(data.value); }
+        else if (data.type === 'visibility') { await sessionReady; session?.visibility?.(data.visible === true); }
         else if (data.type === 'preview.control') { await sessionReady; session?.control?.(data.value); }
         else if (data.type === 'prepare') {
           await sessionReady;
@@ -63,7 +66,7 @@ export function connectPlugin(factory, options = {}) {
         } else if (data.type === 'pause') { plugin?.pause?.(); }
         else if (data.type === 'resume') { plugin?.resume?.(); }
         else if (data.type === 'cancel') { dispose(); }
-        else if (data.type === 'dispose') { removeEventListener('error',unhandled);removeEventListener('unhandledrejection',unhandled);dispose(); await sessionReady; session?.dispose?.(); session=null; }
+        else if (data.type === 'dispose') { removeEventListener('keydown',shortcut); removeEventListener('error',unhandled);removeEventListener('unhandledrejection',unhandled);dispose(); await sessionReady; session?.dispose?.(); session=null; }
         else if (data.type === 'restore') { plugin?.restore?.(data.snapshot); }
       } catch (error) { send('error', { context: data.context, message: String(error).slice(0, 200) }); }
     };
