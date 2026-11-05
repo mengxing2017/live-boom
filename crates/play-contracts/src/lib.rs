@@ -3,7 +3,7 @@ use serde_json::Value;
 use ts_rs::TS;
 
 pub const API_VERSION: &str = "1";
-pub const HOST_VERSION: &str = "0.2.2";
+pub const HOST_VERSION: &str = "0.2.3";
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
 #[ts(export, export_to = "../../../packages/plugin-sdk/src/generated/")]
@@ -91,38 +91,25 @@ pub struct Task {
     pub instance: String,
     pub status: TaskStatus,
     pub prepared: bool,
-    #[serde(default)]
     #[ts(type = "Record<string, unknown> | null")]
     pub plan: Option<Value>,
-    #[serde(default = "one_unit")]
     pub work_units: u32,
-    #[serde(default)]
     pub completed_units: u32,
-    #[serde(default)]
     pub source: InputSource,
-    #[serde(default)]
     pub priority: u8,
-    #[serde(default)]
     #[ts(type = "number")]
     pub created_at: u64,
-    #[serde(default)]
     #[ts(type = "number | null")]
     pub finished_at: Option<u64>,
-    #[serde(default)]
     #[ts(type = "number[]")]
     pub unit_completed_at: Vec<u64>,
 }
-fn one_unit() -> u32 {
-    1
-}
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../packages/plugin-sdk/src/generated/")]
 #[serde(rename_all = "snake_case")]
 pub enum InputSource {
     Manual,
     Demo,
-    #[default]
-    LegacyLocal,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

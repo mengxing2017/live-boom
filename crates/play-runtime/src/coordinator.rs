@@ -26,9 +26,7 @@ pub fn new_id() -> String {
 pub use crate::persistence::{MemoryStore, SqliteStore, StateStore};
 #[derive(Clone, Serialize, Deserialize)]
 struct Receipt {
-    #[serde(default)]
     source: InputSource,
-    #[serde(default)]
     priority: u8,
     input: Value,
     task_id: String,
@@ -41,18 +39,14 @@ struct State {
     display_instance: Option<String>,
     active: Option<PluginInfo>,
     config: Value,
-    #[serde(default = "empty_object")]
     presentation: Value,
     current: Option<Task>,
     queue: VecDeque<Task>,
     history: Vec<Task>,
     receipts: BTreeMap<String, Receipt>,
     namespaces: BTreeMap<String, Value>,
-    #[serde(default)]
     demo: DemoPolicy,
-    #[serde(default)]
     migration_audit: Vec<Value>,
-    #[serde(default)]
     priority_streak: u8,
 }
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -60,9 +54,6 @@ struct DemoPolicy {
     enabled: bool,
     interval: u32,
     input: Value,
-}
-fn empty_object() -> Value {
-    json!({})
 }
 impl Default for State {
     fn default() -> Self {
@@ -96,11 +87,6 @@ impl Coordinator {
             Some(s) => serde_json::from_str(&s).map_err(|e| err("STORAGE_CORRUPT", e))?,
             None => State::default(),
         };
-        for task in &mut state.history {
-            if task.status == TaskStatus::Completed && task.plan.is_none() && task.work_units == 1 {
-                task.completed_units = 1;
-            }
-        }
         if let Some(mut task) = state.current.take() {
             task.status = TaskStatus::Interrupted;
             task.finished_at = Some(now_ms());
@@ -216,7 +202,7 @@ impl Coordinator {
         source: InputSource,
         priority: u8,
     ) -> AppResult<String> {
-        if source == InputSource::LegacyLocal || priority > 1 {
+        if priority > 1 {
             return Err(err("INVALID_SOURCE", "无效的本地来源或优先级"));
         }
         self.submit_expected(request, source, priority, None)
@@ -245,7 +231,7 @@ impl Coordinator {
             }
             if let Some(receipt) = s.receipts.get(&request.command_id) {
                 return if receipt.input == request.input
-                    && (receipt.source == source || receipt.source == InputSource::LegacyLocal)
+                    && receipt.source == source
                     && receipt.priority == priority
                 {
                     Ok(receipt.task_id.clone())

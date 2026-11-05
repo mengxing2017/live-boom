@@ -1,5 +1,4 @@
-//! SQLite checkpoint, transactional query projections and versioned backup migration.
-use crate::coordinator::new_id;
+//! SQLite checkpoint and transactional query projections.
 use play_contracts::{AppError, AppResult};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -29,36 +28,33 @@ impl SqliteStore {
         connection.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS runtime_state (id INTEGER PRIMARY KEY CHECK(id=1), schema_version INTEGER NOT NULL, body TEXT NOT NULL);").map_err(|e|err("STORAGE_UNAVAILABLE",e))?;
         let state_schema: u32 = connection
             .query_row(
-                "SELECT coalesce(max(schema_version),1) FROM runtime_state",
+                "SELECT coalesce(max(schema_version),2) FROM runtime_state",
                 [],
                 |r| r.get(0),
             )
             .map_err(|e| err("STORAGE_UNAVAILABLE", e))?;
-        if ![1, 2].contains(&state_schema) {
+        if state_schema != 2 {
             return Err(err("SCHEMA_MISMATCH", "不支持的检查点版本"));
         }
         let version: u32 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| err("STORAGE_UNAVAILABLE", e))?;
-        if version > 2 {
-            return Err(err("SCHEMA_MISMATCH", "数据库版本不支持"));
-        }
-        if version < 2 {
+        if version != 2 {
             let existing: u32 = connection
                 .query_row("SELECT count(*) FROM runtime_state", [], |r| r.get(0))
                 .map_err(|e| err("STORAGE_UNAVAILABLE", e))?;
-            if existing > 0 {
-                let backup = path.with_extension(format!("before-v2-{}.sqlite", new_id()));
-                connection
-                    .execute("VACUUM INTO ?1", [backup.to_string_lossy().as_ref()])
-                    .map_err(|e| err("BACKUP_FAILED", e))?;
+            if version != 0 || existing != 0 {
+                return Err(err(
+                    "SCHEMA_MISMATCH",
+                    "数据库版本不支持；开发数据请使用独立数据目录重新初始化",
+                ));
             }
             connection.execute_batch("BEGIN IMMEDIATE;
                 CREATE TABLE IF NOT EXISTS runtime_tasks(id TEXT PRIMARY KEY, body TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS runtime_work_items(task_id TEXT NOT NULL, unit_index INTEGER NOT NULL, completed INTEGER NOT NULL, body TEXT, PRIMARY KEY(task_id,unit_index));
                 CREATE TABLE IF NOT EXISTS runtime_receipts(id TEXT PRIMARY KEY, body TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS plugin_preferences(id TEXT PRIMARY KEY, body TEXT NOT NULL);
-                PRAGMA user_version=2; COMMIT;").map_err(|e|err("MIGRATION_FAILED",e))?;
+                PRAGMA user_version=2; COMMIT;").map_err(|e|err("STORAGE_UNAVAILABLE",e))?;
         }
         Ok(Self(connection, None))
     }
@@ -76,7 +72,7 @@ impl StateStore for SqliteStore {
             .optional()
             .map_err(|e| err("STORAGE_UNAVAILABLE", e))?;
         match row {
-            Some((1 | 2, body)) => Ok(Some(body)),
+            Some((2, body)) => Ok(Some(body)),
             None => Ok(None),
             _ => Err(err("SCHEMA_MISMATCH", "数据库版本不支持")),
         }
