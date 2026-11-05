@@ -1,0 +1,12 @@
+import {writeControlNotices} from '../../tools/plugin-pack/notices.mjs';
+import {build} from 'esbuild';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {pack} from '@liveboom/plugin-sdk/pack';
+const root=new URL('.',import.meta.url);
+const result=await build({entryPoints:[new URL('src/control/App.tsx',root).pathname],bundle:true,write:false,metafile:true,jsx:'automatic',outdir:'out',format:'iife',target:'es2022',minify:true,legalComments:'inline',define:{'process.env.NODE_ENV':'"production"'}});
+const script=result.outputFiles.find(f=>f.path.endsWith('.js')).text.replace(/<\/script/gi,'<\\/script');
+const css=result.outputFiles.find(f=>f.path.endsWith('.css')).text.replace(/<\/style/gi,'<\\/style');
+await mkdir(new URL('web/',root),{recursive:true});
+await writeFile(new URL('web/control.html',root),`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style><div id="root"></div><script>${script}</script></html>`);
+await writeControlNotices(root,result.metafile.inputs);
+console.log(await pack(root.pathname,new URL('dist/plugin.lbplug',root).pathname));

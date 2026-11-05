@@ -1,9 +1,9 @@
 {
   "id": "community.registry",
   "name": "昵称登记",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "sdkApi": "1",
-  "hostVersion": ">=0.2.0 <0.3.0",
+  "hostVersion": ">=0.2.3 <0.3.0",
   "entry": "web/index.html",
   "inputSchema": "schemas/input.json",
   "configSchema": "schemas/config.json",
@@ -13,5 +13,10 @@
     "task.result.report",
     "storage.own"
   ],
-  "publisher": "likeboom-examples"
+  "publisher": "liveboom-examples",
+  "capabilities": [
+    "control.v1",
+    "control.viewport.v1"
+  ],
+  "controlEntry": "web/control.html"
 }
