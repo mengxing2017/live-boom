@@ -24,6 +24,7 @@
     "apps/desktop/src",
     "packages/*/src",
     "plugins/printer-3d/src/control",
-    "plugins/printer-3d/src/display.tsx"
+    "plugins/printer-3d/src/display.tsx",
+    "plugins/registry/src/control"
   ]
 }
