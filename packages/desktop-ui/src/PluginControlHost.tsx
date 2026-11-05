@@ -1,3 +1,4 @@
+import { PluginHost } from './PluginHost';
 import { Modal } from '@liveboom/plugin-sdk/ui';
 import { useConfirm } from './components/ConfirmProvider';
 import { useEffect, useRef, useState } from 'react';
@@ -8,7 +9,7 @@ function project(s: Snapshot): ControlState {
     const own = (t: Task) => t.plugin.digest === s.active?.digest;
     return { ...s, active: s.active!, current: s.current && own(s.current) ? taskView(s.current) : null, queue: s.queue.filter(own).map(taskView), history: s.history.filter(own).slice(-100).map(taskView) };
 }
-const commands = new Set(['submit', 'submit_demo', 'configure', 'presentation', 'open_display', 'pause', 'resume', 'cancel', 'retry', 'clear_pending', 'clear_history', 'preempt', 'reset_demo', 'demo_policy', 'resize_display', 'preview_control', 'read_preferences', 'media_list', 'delete_media', 'media_resolve', 'licenses']);
+const commands = new Set(['submit', 'submit_demo', 'configure', 'presentation', 'pause', 'resume', 'cancel', 'retry', 'clear_pending', 'clear_history', 'preempt', 'reset_demo', 'demo_policy', 'preview_control', 'read_preferences', 'media_list', 'delete_media', 'media_resolve', 'licenses']);
 const destructive = new Set(['clear_pending', 'clear_history', 'preempt', 'reset_demo', 'delete_media']);
 export function PluginControlHost({ transport, snapshot, visible = true, resetKey = 0 }: {
     transport: DesktopTransport;
@@ -17,6 +18,7 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
     resetKey?: number;
 }) {
     const ask = useConfirm();
+    const [surface, setSurface] = useState({x:0,y:0,width:640,height:360,visible:false});
     const visibility = useRef(visible); visibility.current = visible;
     const viewportRevision = useRef(0);
     const frame = useRef<HTMLIFrameElement>(null), channel = useRef<MessagePort | null>(null), latest = useRef(snapshot);
@@ -40,8 +42,6 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
             disposers.push(fn);
         else
             fn(); }); };
-        keep(transport.subscribePreview?.(bytes => { if (!active || !visibility.current || bytes.length > 262144)
-            return; const buffer = Uint8Array.from(bytes).buffer; send('preview', { bytes: buffer }, [buffer]); }));
         keep(transport.subscribeMetrics?.(value => send('metrics', { value })));
         keep(transport.subscribeExport?.(bytes => { if (bytes.length <= 2097152) {
             exported.current = bytes;
@@ -88,7 +88,14 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
                 if (JSON.stringify(params).length > 65536)
                     throw new Error('请求过大');
                 let value: unknown;
-                if (data.method === 'app.settings') {
+                if (data.method === 'surface.bounds') {
+                    const {x,y,width,height,visible} = params;
+                    const el = frame.current;
+                    if (!el || ![x,y,width,height].every(v => typeof v === 'number' && Number.isFinite(v)) || typeof visible !== 'boolean') throw new Error('无效的画面区域');
+                    const left = Math.max(0, Math.min(el.clientWidth, x)), top = Math.max(0, Math.min(el.clientHeight, y));
+                    const w = Math.max(0, Math.min(width + Math.min(x,0), el.clientWidth-left)), h = Math.max(0, Math.min(height + Math.min(y,0),el.clientHeight-top));
+                    setSurface(old => w > 0 && h > 0 ? {x:left,y:top,width:w,height:h,visible} : {...old,visible:false});
+                } else if (data.method === 'app.settings') {
                     dispatchEvent(new Event('liveboom:settings'));
                 }
                 else if (data.method === 'layout.load' || data.method === 'layout.save') {
@@ -145,6 +152,6 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
         port.start();
         frame.current?.contentWindow?.postMessage({ type: 'liveboom.control.connect', api: '1', nonce: token }, '*', [c.port2]);
     };
-    return <div className="plugin-control-shell"><div className="plugin-frame-viewport"><iframe ref={frame} className="plugin-control-frame" title={`${snapshot.active!.manifest.name}操作台`} sandbox="allow-scripts" allow="camera 'none'; microphone 'none'; geolocation 'none'" src={url || undefined} onLoad={url ? connect : undefined}/></div>{error && <p role="alert">{error}</p>}<Modal open={Boolean(review)} title="宿主确认保存规则图片" onClose={() => setReview(null)}><img src={exportUrl} alt="待保存的规则图片"/><button onClick={() => { if (review)
+    return <div className="plugin-control-shell"><div className="plugin-frame-viewport"><iframe ref={frame} className="plugin-control-frame" title={`${snapshot.active!.manifest.name}操作台`} sandbox="allow-scripts" allow="camera 'none'; microphone 'none'; geolocation 'none'" src={url || undefined} onLoad={url ? connect : undefined}/></div><div className="workbench-render-surface display-root" style={{left:surface.x,top:surface.y,width:surface.width,height:surface.height,visibility:visible&&surface.visible&&!review?'visible':'hidden'}}><PluginHost key={digest} snapshot={snapshot} transport={transport} visible={visible&&surface.visible&&!review}/></div>{error && <p role="alert">{error}</p>}<Modal open={Boolean(review)} title="宿主确认保存规则图片" onClose={() => setReview(null)}><img src={exportUrl} alt="待保存的规则图片"/><button onClick={() => { if (review)
         void transport.savePng?.(review).then(() => setReview(null)).catch(e => setError(String(e))); }}>选择位置并保存 PNG</button></Modal></div>;
 }

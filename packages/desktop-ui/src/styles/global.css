@@ -1,31 +1,31 @@
 :root {
-  font-family:'Segoe UI','Microsoft YaHei',system-ui,sans-serif;
+  font-family:Segoe UI,Microsoft YaHei,system-ui,sans-serif;
   font-size:var(--lb-font-size,13px);
   background:var(--lb-bg);
-  color:var(--lb-text);
+  color:var(--lb-text)
 }
 * {
-  box-sizing:border-box;
+  box-sizing:border-box
 }
 html,body,#root {
   margin:0;
   width:100%;
   height:100%;
   min-width:0;
-  min-height:0;
+  min-height:0
 }
 body {
-  overflow:hidden;
+  overflow:hidden
 }
 button,input,select,textarea {
-  font:inherit;
+  font:inherit
 }
 button {
-  cursor:pointer;
+  cursor:pointer
 }
 button:disabled {
   opacity:.45;
-  cursor:default;
+  cursor:default
 }
 .app-shell button,.app-shell input,.app-shell select,.app-shell textarea,.lb-dialog button {
   color:var(--lb-text);
@@ -33,22 +33,22 @@ button:disabled {
   border:1px solid var(--lb-border);
   border-radius:4px;
   min-height:28px;
-  padding:4px 9px;
+  padding:4px 9px
 }
 .app-shell button:hover:not(:disabled),.lb-dialog button:hover {
-  background:#303c4a;
+  background:#303c4a
 }
 .app-shell .primary {
   background:#245b91;
   border-color:#3777af;
-  color:white;
+  color:#fff
 }
 .app-shell {
   width:100%;
   height:100%;
   display:grid;
   grid-template-rows:44px minmax(0,1fr) 24px;
-  overflow:hidden;
+  overflow:hidden
 }
 .app-toolbar {
   display:flex;
@@ -57,33 +57,33 @@ button:disabled {
   padding:0 12px;
   border-bottom:1px solid var(--lb-border);
   background:#202630;
-  min-width:0;
+  min-width:0
 }
 .app-brand {
-  font-size:14px;
+  font-size:14px
 }
 .plugin-switch {
   max-width:35vw;
   overflow:hidden;
   text-overflow:ellipsis;
-  white-space:nowrap;
+  white-space:nowrap
 }
 .toolbar-spacer {
-  flex:1;
+  flex:1
 }
 .output-state {
   font-size:12px;
   color:var(--lb-muted);
-  white-space:nowrap;
+  white-space:nowrap
 }
 .output-state.is-ready {
-  color:#90d5b4;
+  color:#90d5b4
 }
 .app-body {
   display:grid;
   grid-template-columns:56px minmax(0,1fr);
   min-height:0;
-  min-width:0;
+  min-width:0
 }
 .activity-bar {
   display:flex;
@@ -91,7 +91,7 @@ button:disabled {
   gap:3px;
   padding:6px 3px;
   border-right:1px solid var(--lb-border);
-  background:#1b2028;
+  background:#1b2028
 }
 .activity-bar button {
   border:0;
@@ -99,20 +99,20 @@ button:disabled {
   background:transparent;
   font-size:11px;
   padding:6px 0;
-  color:var(--lb-muted);
+  color:var(--lb-muted)
 }
 .activity-bar button span {
   display:block;
   font-size:19px;
-  line-height:24px;
+  line-height:24px
 }
 .activity-bar button[aria-current=page] {
   background:#2c3d53;
   color:#fff;
-  border-left:2px solid var(--lb-accent);
+  border-left:2px solid var(--lb-accent)
 }
 .activity-bar button:nth-last-child(2) {
-  margin-top:auto;
+  margin-top:auto
 }
 .app-content {
   position:relative;
@@ -120,72 +120,72 @@ button:disabled {
   min-height:0;
   overflow:hidden;
   display:flex;
-  flex-direction:column;
+  flex-direction:column
 }
 .workspace-view {
   flex:1;
   min-width:0;
   min-height:0;
   overflow:hidden;
-  position:relative;
+  position:relative
 }
 .view-scroll {
   min-height:0;
   overflow:auto;
   padding:16px 24px;
-  flex:1;
+  flex:1
 }
 .settings-view {
   flex:initial;
-  overflow:visible;
+  overflow:visible
 }
 .app-content:has(>.settings-view:not([hidden])) {
-  overflow:auto;
+  overflow:auto
 }
 .settings-view h1 {
   font-size:18px;
-  margin:0 0 14px;
+  margin:0 0 14px
 }
 .settings-view details {
   border-bottom:1px solid var(--lb-border);
   padding:12px 0;
-  max-width:1000px;
+  max-width:1000px
 }
 .settings-view summary {
   font-size:14px;
   cursor:pointer;
-  font-weight:600;
+  font-weight:600
 }
 .settings-view label,.generic-workspace label {
   display:block;
-  margin:10px 0;
+  margin:10px 0
 }
 .settings-view label input:not([type=checkbox]),.generic-workspace label input:not([type=checkbox]),.settings-view textarea,.generic-workspace textarea {
   display:block;
   width:100%;
-  max-width:600px;
+  max-width:600px
 }
 .settings-view select {
-  max-width:100%;
+  max-width:100%
 }
 .settings-view button,.generic-workspace button {
-  margin:3px;
+  margin:3px
 }
 .settings-view p {
   color:var(--lb-muted);
   line-height:1.6;
-  max-width:960px;
+  max-width:960px
 }
 .settings-view fieldset {
   border:1px solid var(--lb-border);
   margin:10px 0;
-  max-width:650px;
+  max-width:650px
 }
 .settings-view pre {
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   max-height:50vh;
-  overflow:auto;
+  overflow:auto
 }
 .generic-workspace {
   height:100%;
@@ -193,48 +193,48 @@ button:disabled {
   grid-template-columns:minmax(260px,1fr) minmax(240px,1fr);
   gap:12px;
   padding:12px;
-  overflow:hidden;
+  overflow:hidden
 }
 .generic-workspace>form,.generic-workspace>section,.generic-workspace>details {
   min-height:0;
   overflow:auto;
   background:var(--lb-panel);
-  padding:12px;
+  padding:12px
 }
 .generic-workspace h2,.history-view h2 {
   font-size:14px;
-  margin:0 0 12px;
+  margin:0 0 12px
 }
 .history-view section {
   height:100%;
   min-height:0;
   display:flex;
-  flex-direction:column;
+  flex-direction:column
 }
 .history-view ul {
   min-height:0;
   overflow:auto;
   padding:0;
-  list-style:none;
+  list-style:none
 }
 .history-view li {
   padding:10px;
   border-bottom:1px solid var(--lb-border);
-  overflow-wrap:anywhere;
+  overflow-wrap:anywhere
 }
 .history-view li button {
-  margin-left:8px;
+  margin-left:8px
 }
 .empty-workspace {
   height:100%;
   display:grid;
   align-content:center;
   justify-items:center;
-  gap:12px;
+  gap:12px
 }
 .empty-workspace h1 {
   font-size:20px;
-  margin:0;
+  margin:0
 }
 .app-status {
   display:flex;
@@ -245,28 +245,28 @@ button:disabled {
   border-top:1px solid var(--lb-border);
   font-size:11px;
   white-space:nowrap;
-  overflow:hidden;
+  overflow:hidden
 }
 .status-message {
   flex:1;
   overflow:hidden;
-  text-overflow:ellipsis;
+  text-overflow:ellipsis
 }
 .plugin-control-shell,.plugin-frame-viewport {
   height:100%;
   min-height:0;
   min-width:0;
-  overflow:hidden;
+  overflow:hidden
 }
 .plugin-control-shell {
-  position:relative;
+  position:relative
 }
 .plugin-control-frame {
   height:100%;
   display:block;
   width:100%;
   border:0;
-  background:var(--lb-bg);
+  background:var(--lb-bg)
 }
 .plugin-control-shell>p[role=alert] {
   position:absolute;
@@ -274,24 +274,24 @@ button:disabled {
   left:12px;
   right:12px;
   padding:8px;
-  background:#702f38;
+  background:#702f38
 }
 .confirmation-message {
   white-space:pre-wrap;
-  line-height:1.6;
+  line-height:1.6
 }
 .display-root,.scene-host {
   width:100%;
   height:100%;
   overflow:hidden;
   position:relative;
-  background:#10182d;
+  background:#10182d
 }
 .scene-host iframe {
   display:block;
   width:100%;
   height:100%;
-  border:0;
+  border:0
 }
 .source-label {
   position:fixed;
@@ -300,13 +300,13 @@ button:disabled {
   padding:6px 10px;
   background:#0008;
   color:#eef;
-  pointer-events:none;
+  pointer-events:none
 }
 .display-error {
   position:fixed;
   bottom:16px;
   left:16px;
-  color:#ff9a94;
+  color:#ff9a94
 }
 .audio-unlock {
   position:fixed;
@@ -317,7 +317,7 @@ button:disabled {
   color:#173257;
   border:0;
   border-radius:4px;
-  padding:8px;
+  padding:8px
 }
 .output-preview {
   display:block;
@@ -325,48 +325,113 @@ button:disabled {
   max-width:640px;
   aspect-ratio:16/9;
   object-fit:contain;
-  touch-action:none;
+  touch-action:none
 }
 .license-text {
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   max-height:50vh;
-  overflow:auto;
+  overflow:auto
 }
 @media(max-width:900px) {
   .output-state {
-    display:none;
+    display:none
   }
   .app-toolbar {
     gap:6px;
-    padding:0 8px;
+    padding:0 8px
   }
   .app-toolbar button {
-    font-size:12px;
+    font-size:12px
   }
   .app-brand {
-    display:none;
+    display:none
   }
   .app-status {
-    gap:8px;
+    gap:8px
   }
   .generic-workspace {
     grid-template-columns:minmax(0,1fr);
-    overflow:auto;
+    overflow:auto
   }
   .generic-workspace>form,.generic-workspace>section {
-    overflow:visible;
+    overflow:visible
   }
   .settings-view {
-    padding:12px;
+    padding:12px
   }
   .app-status>span:last-child {
-    display:none;
+    display:none
   }
 }
-
-.display-root > iframe { display: block; width: 100%; height: 100%; border: 0; }
-
-.generic-workspace { overflow:auto; align-content:start; }
-.generic-workspace > form,.generic-workspace > section,.generic-workspace > details { overflow:visible; }
-.history-view pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+.display-root>iframe {
+  display:block;
+  width:100%;
+  height:100%;
+  border:0
+}
+.generic-workspace {
+  overflow:auto;
+  align-content:start
+}
+.generic-workspace>form,.generic-workspace>section,.generic-workspace>details {
+  overflow:visible
+}
+.history-view pre {
+  white-space:pre-wrap;
+  overflow-wrap:anywhere
+}
+.workbench-render-surface {
+  position:absolute;
+  z-index:1;
+  overflow:hidden;
+  background:#101820
+}
+.workbench-render-surface .source-label {
+  pointer-events:none
+}
+.generic-workspace-shell {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,36%);
+  height:100%;
+  min-height:0;
+  overflow:hidden
+}
+.generic-render {
+  height:100%;
+  min-width:0;
+  position:relative;
+  overflow:hidden
+}
+.generic-workspace-shell .generic-workspace {
+  height:100%;
+  overflow:auto
+}
+.display-root {
+  position:relative
+}
+.workbench-render-surface .display-error {
+  position:absolute;
+  inset:20% 10% auto;
+  background:#702f38;
+  padding:12px;
+  z-index:3
+}
+.plugin-control-shell>.workbench-render-surface {
+  position:absolute
+}
+.source-label {
+  position:absolute;
+  top:auto;
+  bottom:6px;
+  left:8px;
+  pointer-events:none
+}
+.audio-unlock {
+  position:absolute;
+  top:8px;
+  left:8px;
+  bottom:auto;
+  right:auto;
+  z-index:2
+}
