@@ -2,12 +2,12 @@ import { createRoot } from 'react-dom/client';
 import { invoke as nativeInvoke, convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { DesktopApp } from '@likeboom/desktop-ui';
-import type { DesktopTransport, Snapshot, PluginInfo } from '@likeboom/plugin-sdk';
-import '@likeboom/desktop-ui/styles';
-const hostToken = (window as Window & { __LIKEBOOM_HOST_TOKEN__?: string }).__LIKEBOOM_HOST_TOKEN__;
+import { DesktopApp } from '@liveboom/desktop-ui';
+import type { DesktopTransport, Snapshot, PluginInfo } from '@liveboom/plugin-sdk';
+import '@liveboom/desktop-ui/styles';
+const hostToken = (window as Window & { __LIVEBOOM_HOST_TOKEN__?: string }).__LIVEBOOM_HOST_TOKEN__;
 if (!hostToken) throw new Error('可信宿主凭证缺失，请通过 Tauri 启动');
-const invoke = <T,>(command: string, args?: Record<string, unknown>): Promise<T> => nativeInvoke<T>(command, args, { headers: { 'x-likeboom-host': hostToken } });
+const invoke = <T,>(command: string, args?: Record<string, unknown>): Promise<T> => nativeInvoke<T>(command, args, { headers: { 'x-liveboom-host': hostToken } });
 const transport: DesktopTransport = {
   importMedia: (bytes, expectedDigest) => invoke('import_media',{bytes,expectedDigest}),
   savePng: bytes => invoke('export_png',{bytes}),

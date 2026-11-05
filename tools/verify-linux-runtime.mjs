@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 if (process.platform !== 'linux') {
   console.log('Linux ELF runtime check skipped on this platform.');
 } else {
-  const binary = resolve(process.argv[2] ?? 'target/debug/likeboom');
+  const binary = resolve(process.argv[2] ?? 'target/debug/liveboom');
   if (!existsSync(binary)) throw new Error(`请先构建桌面程序：${binary}`);
   const environment = { ...process.env, LC_ALL: 'C' };
   const program = execFileSync('readelf', ['-l', binary], { env: environment, encoding: 'utf8' });

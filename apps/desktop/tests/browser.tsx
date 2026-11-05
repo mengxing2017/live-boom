@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
-import { DesktopApp } from '@likeboom/desktop-ui';
-import type { DesktopTransport, Snapshot, Task, PluginInfo } from '@likeboom/plugin-sdk';
-import '@likeboom/desktop-ui/styles';
+import { DesktopApp } from '@liveboom/desktop-ui';
+import type { DesktopTransport, Snapshot, Task, PluginInfo } from '@liveboom/plugin-sdk';
+import '@liveboom/desktop-ui/styles';
 const documentURL = new URLSearchParams(location.search).get('document')!;
 const plugin = { digest: 'test', manifest: { id: 'private.probe', name: 'Probe', version: '1.0.0', sdkApi: '1', hostVersion: '>=0.2.0 <0.3.0', entry: 'web/index.html', configSchema: 'schemas/config.json', inputSchema: 'schemas/input.json', stateSchemaVersion: 1, permissions: ['task.current.read','task.result.report'], publisher:'test',capabilities:[],planSchema:null,presentationSchema:null,workUnitsField:null,workUnitsSelectorField:null,workUnitsRulesField:null }, input_schema: {}, config_schema:{},plan_schema:null,presentation_schema:null } as PluginInfo;
 let snapshot: Snapshot = { version:1, session_id:'browser', paused:false, display_ready:false,demo_enabled:false,demo_interval:30,presentation:{}, active:plugin, config:{duration:2}, current:null, queue:[], history:[] };

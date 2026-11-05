@@ -1,4 +1,4 @@
-import {connectPlugin} from '@likeboom/plugin-sdk/client';
+import {connectPlugin} from '@liveboom/plugin-sdk/client';
 import {createRendererSession} from './scene/session.js';
 import {preparePlan} from './rules/plan.js';
 export function startDisplay(view) {

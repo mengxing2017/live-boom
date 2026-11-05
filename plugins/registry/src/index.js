@@ -1,4 +1,4 @@
-LikeBoom.connect((services) => {
+liveboom.connect((services) => {
   let remaining = 0, started = 0, timer, name, input;
   const stage = document.getElementById('stage');
   function finish() { timer = undefined; services.result('completed'); }

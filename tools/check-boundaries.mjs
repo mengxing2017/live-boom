@@ -15,6 +15,6 @@ for (const directory of ['packages/plugin-sdk', 'packages/desktop-ui']) for (con
 }
 for (const directory of ['crates/play-core', 'crates/play-contracts']) {
   const manifest = await readFile(`${directory}/Cargo.toml`, 'utf8');
-  if (/tauri|play-runtime|likeboom-private/.test(manifest)) throw new Error(`Forbidden crate dependency: ${directory}`);
+  if (/tauri|play-runtime|liveboom-private/.test(manifest)) throw new Error(`Forbidden crate dependency: ${directory}`);
 }
 console.log('Public package dependency boundaries OK');

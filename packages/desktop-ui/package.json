@@ -1,13 +1,13 @@
 {
-  "name": "@likeboom/desktop-ui",
-  "version": "0.2.2",
+  "name": "@liveboom/desktop-ui",
+  "version": "0.2.3",
   "type": "module",
   "exports": {
     ".": "./src/index.tsx",
     "./styles": "./src/styles/global.css"
   },
   "dependencies": {
-    "@likeboom/plugin-sdk": "workspace:*",
+    "@liveboom/plugin-sdk": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -2,7 +2,7 @@
 export function connectPlugin(factory, options = {}) {
   let connected = false;
   const init = async (event) => {
-    if (connected || event.source !== parent || event.data?.type !== 'likeboom.connect' || event.data?.api !== '1' || typeof event.data?.nonce !== 'string' || !event.ports[0]) return;
+    if (connected || event.source !== parent || event.data?.type !== 'liveboom.connect' || event.data?.api !== '1' || typeof event.data?.nonce !== 'string' || !event.ports[0]) return;
     connected = true; removeEventListener('message', init);
     const port = event.ports[0], nonce = event.data.nonce;
     let sequence = 0, generation = 0, plugin = null, contextKey = '', activeContext = undefined, session = null, sessionReady = Promise.resolve();

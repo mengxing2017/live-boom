@@ -1,6 +1,6 @@
 {
-  "name": "@likeboom/desktop-app",
-  "version": "0.2.2",
+  "name": "@liveboom/desktop-app",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,8 +9,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@likeboom/plugin-sdk": "workspace:*",
-    "@likeboom/desktop-ui": "workspace:*",
+    "@liveboom/plugin-sdk": "workspace:*",
+    "@liveboom/desktop-ui": "workspace:*",
     "@tauri-apps/api": "^2.9.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

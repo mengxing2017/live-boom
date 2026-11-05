@@ -111,7 +111,7 @@ export async function createRendererSession(services, view) {
    if(value.op==='loadCamera'&&Number.isInteger(value.index)){applyCamera(views[value.index]);saveCamera();}
    if(value.op==='deleteCamera'&&Number.isInteger(value.index)&&value.index>=0&&value.index<views.length){views.splice(value.index,1);await services.request('preferences.set',{key:'views',value:views});}
    if(value.op==='preview')previewEnabled=value.enabled===true;
-   if(value.op==='rules'&&lastConfig){const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=760;const c=canvas.getContext('2d');c.fillStyle='#f2ece1';c.fillRect(0,0,1000,760);c.fillStyle='#1c3541';c.font='bold 36px sans-serif';c.fillText('LikeBoom · 3D',40,60);c.font='25px sans-serif';ruleText(lastConfig,presentation.language).split('\n').forEach((line,i)=>c.fillText(line,40,120+i*45,920));canvas.toBlob(async blob=>{if(blob)services.exportPng(await blob.arrayBuffer());},'image/png');}
+   if(value.op==='rules'&&lastConfig){const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=760;const c=canvas.getContext('2d');c.fillStyle='#f2ece1';c.fillRect(0,0,1000,760);c.fillStyle='#1c3541';c.font='bold 36px sans-serif';c.fillText('liveboom · 3D',40,60);c.font='25px sans-serif';ruleText(lastConfig,presentation.language).split('\n').forEach((line,i)=>c.fillText(line,40,120+i*45,920));canvas.toBlob(async blob=>{if(blob)services.exportPng(await blob.arrayBuffer());},'image/png');}
    if(value.op==='clearScenery'&&!active){for(const p of [...products])removeProduct(p);}
   },
   configure(config){lastConfig=config;},

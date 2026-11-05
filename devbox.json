@@ -69,8 +69,8 @@
       "fmt:check": "cargo fmt --all --check",
       "web": "pnpm dev",
       "desktop": "pnpm tauri dev",
-      "desktop:check": "pnpm plugins:build && cargo check -p likeboom",
-      "desktop:verify": "pnpm plugins:build && cargo build -p likeboom && node tools/verify-linux-runtime.mjs"
+      "desktop:check": "pnpm plugins:build && cargo check -p liveboom",
+      "desktop:verify": "pnpm plugins:build && cargo build -p liveboom && node tools/verify-linux-runtime.mjs"
     }
   },
   "nixpkgs": {

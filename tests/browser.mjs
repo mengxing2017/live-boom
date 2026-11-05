@@ -21,7 +21,7 @@ const port=server.address().port;
 const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const vitePort=reserve.address().port;await new Promise(r=>reserve.close(r));const base=`http://127.0.0.1:${vitePort}`;
 const vite=spawn(process.execPath,['apps/desktop/node_modules/vite/bin/vite.js','apps/desktop','--host','127.0.0.1','--port',String(vitePort)],{stdio:['ignore','pipe','pipe']});
 let viteLog='';vite.stdout.on('data',b=>viteLog+=b);vite.stderr.on('data',b=>viteLog+=b);
-const profile=await mkdtemp(join(tmpdir(),'likeboom-chrome-'));
+const profile=await mkdtemp(join(tmpdir(),'liveboom-chrome-'));
 let chrome,ws;
 try {
  for(let n=0;;n++){try{if((await fetch(base)).ok)break;}catch{}if(n>100)throw new Error(viteLog);await delay(100);}
