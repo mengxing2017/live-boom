@@ -1,6 +1,14 @@
+const stage = document.getElementById('stage');
+function showIdle() {
+  stage.replaceChildren();
+  const title=document.createElement('p');title.textContent='心意登记簿 · 本地娱乐';
+  const heading=document.createElement('h1');heading.textContent='等待登记';
+  const help=document.createElement('p');help.textContent='在工作台输入昵称，加入登记队列';
+  stage.append(title,heading,help);
+}
+showIdle();
 liveboom.connect((services) => {
   let remaining = 0, started = 0, timer, name, input;
-  const stage = document.getElementById('stage');
   function finish() { timer = undefined; services.result('completed'); }
   function resume() { if (!timer && remaining > 0) { started = performance.now(); timer = setTimeout(finish, remaining); } }
   function pause() { if (timer) { clearTimeout(timer); timer = undefined; remaining = Math.max(1, remaining - (performance.now() - started)); } }
@@ -15,6 +23,6 @@ liveboom.connect((services) => {
       stage.append(title, name, message); resume();
     },
     pause, resume,
-    dispose() { clearTimeout(timer); timer = undefined; stage.replaceChildren(); },
+    dispose() { clearTimeout(timer); timer = undefined; showIdle(); },
   };
 });
