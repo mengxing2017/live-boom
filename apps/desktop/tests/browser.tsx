@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { DesktopApp } from '@liveboom/desktop-ui';
+import { GameplaySurface } from '@liveboom/desktop-ui';
 import type { DesktopTransport, Snapshot, Task, PluginInfo } from '@liveboom/plugin-sdk';
 import '@liveboom/desktop-ui/styles';
 const documentURL = new URLSearchParams(location.search).get('document')!;
@@ -16,4 +16,4 @@ const transport: DesktopTransport = {
  result:async request=>{testState.results.push(request.status);snapshot={...snapshot,current:null};emit();},
  service:async()=>null,
 };
-createRoot(document.getElementById('root')!).render(<DesktopApp transport={transport} role="display"/>);
+createRoot(document.getElementById('root')!).render(<GameplaySurface transport={transport}/>);

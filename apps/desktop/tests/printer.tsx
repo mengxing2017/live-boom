@@ -1,5 +1,5 @@
 import {createRoot} from 'react-dom/client';
-import {DesktopApp} from '@liveboom/desktop-ui';
+import {DesktopApp,GameplaySurface} from '@liveboom/desktop-ui';
 import type {DesktopTransport,Snapshot,Task,PluginInfo} from '@liveboom/plugin-sdk';
 import '@liveboom/desktop-ui/styles';
 import currentManifest from '../../../plugins/printer-3d/manifest.json';
@@ -53,4 +53,4 @@ const transport:DesktopTransport={
  exportPng:async(_,bytes)=>{testState.exports=bytes;for(const f of exports)f(bytes);},
  subscribeControl:async f=>{testState.controls.add(f);return()=>testState.controls.delete(f);},
 };
-createRoot(document.getElementById('root')!).render(controlURL?<><DesktopApp transport={transport} role="control"/><div className="browser-output" style={{position:'fixed',right:0,bottom:0,width:960,height:540,opacity:.01,pointerEvents:'none',zIndex:1}}><style>{'.browser-output .display-root{width:960px;height:540px}'}</style><DesktopApp transport={transport} role="display"/></div></>:<DesktopApp transport={transport} role="display"/>);
+createRoot(document.getElementById('root')!).render(controlURL?<DesktopApp transport={transport}/>:<GameplaySurface transport={transport}/>);

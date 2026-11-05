@@ -53,7 +53,7 @@ try {
  await evaluate('window.__test.pause(false)');
  for(let n=0;n<600;n++){if((await evaluate('window.__test.results.length'))>0)break;await delay(100);}
  assert.deepEqual(await evaluate('window.__test.results'),['completed']);
- assert.deepEqual(await evaluate('window.__test.units'),[0,1]);assert.ok(await evaluate('window.__test.frames>0'),'No actual WebGL preview frames');
+ assert.deepEqual(await evaluate('window.__test.units'),[0,1]);assert.ok(await evaluate('window.__test.metrics.output?.[0]>0'),'No actual WebGL render metrics');
  await evaluate('window.__test.stale()');await delay(300);assert.deepEqual(await evaluate('window.__test.results'),['completed'],'A delayed previous-session snapshot replayed a completed task');
  assert.equal(networkHits,0,'Plugin attempted network access');
  await evaluate("window.__test.control({op:'rules'})");for(let n=0;n<50;n++){if(await evaluate('window.__test.exports.length>0'))break;await delay(100);}
@@ -90,18 +90,37 @@ try {
  for(let n=0;n<100;n++){if(await ui("!!document.querySelector('[aria-label=登记昵称]')"))break;await delay(100);}
  for(let n=0;n<100;n++){if(await evaluate('window.__test.snapshot().display_ready'))break;await delay(100);}
  assert.equal(await evaluate('window.__test.snapshot().display_ready'),true,'Registry display did not register: '+await evaluate('document.body.innerText'));
+
+ const outputFrame=await attachFrame('/registry');
+ const outputWorld=await call('Page.createIsolatedWorld',{frameId:outputFrame.id,worldName:'registry-output-test'},outputFrame.session);
+ const output=async expression=>{const r=await call('Runtime.evaluate',{expression,contextId:outputWorld.executionContextId,returnByValue:true,awaitPromise:true},outputFrame.session);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+ assert.ok(await output("document.body.textContent.includes('等待登记')"),'Idle registry output was blank');
  await field('登记昵称','桌面登记验证');await field('登记留言','React 登记工作区');await delay(50);await click('加入登记队列');
+ for(let n=0;n<100;n++){if(await output("document.body.textContent.includes('桌面登记验证')"))break;await delay(50);}
+ assert.ok(await output("document.body.textContent.includes('桌面登记验证')"),'Nickname was not rendered in the workbench');
+ await click('暂停');for(let n=0;n<50;n++){if(await evaluate('window.__test.snapshot().paused'))break;await delay(50);}assert.equal(await evaluate('window.__test.snapshot().paused'),true);
+ for(const [width,height] of [[720,560],[1920,1080]]){await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},sessionId);await delay(250);assert.ok(await ui('document.documentElement.scrollHeight<=innerHeight+1'));}
+ await delay(250);const registryShot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('/tmp/liveboom-registry-workbench.png',Buffer.from(registryShot.data,'base64'));
+ assert.equal(await evaluate("document.querySelectorAll('.workbench-render-surface>iframe').length"),1);
+ await click('继续');
  for(let n=0;n<200;n++){if(await evaluate('window.__test.results.length>0'))break;await delay(100);}
  assert.deepEqual(await evaluate('window.__test.results'),['completed'],'Registry did not complete: '+JSON.stringify(await evaluate('window.__test.snapshot()'))+' '+await ui('document.body.innerText')+' '+JSON.stringify(browserErrors));
- for(const [width,height] of [[720,560],[1920,1080]]){await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},sessionId);await delay(250);assert.ok(await ui('document.documentElement.scrollHeight<=innerHeight+1'));}
+ for(let n=0;n<50;n++){if(await output("document.body.textContent.includes('等待登记')"))break;await delay(50);}
+ assert.ok(await output("document.body.textContent.includes('等待登记')"),'Registry did not return to its idle view');
  console.log('Desktop workbench: real React registry submission/completion passed');
  }
  if(!process.env.LIVEBOOM_REGISTRY_ONLY){
  for(let n=0;n<100;n++){if(await ui("document.body.textContent.includes('打印现场')"))break;await delay(100);}
  assert.equal(await ui("document.body.textContent.includes('规则演示台')"),true);
- for(let n=0;n<300;n++){if(await evaluate('window.__test.snapshot().display_ready&&window.__test.frames>0'))break;await delay(100);}assert.equal(await evaluate('window.__test.frames>0'),true,'Display did not produce a first frame');console.log('React control: initialized with live preview');
- for(let n=0;n<100;n++){if(await ui("document.querySelector('.stage-preview>img')?.naturalWidth>0"))break;await delay(100);}
- assert.equal(await ui("document.querySelector('.stage-preview>img')?.naturalWidth>0"),true,'First preview failed: '+JSON.stringify(browserErrors)+' '+JSON.stringify(await call('Runtime.evaluate',{expression:"(()=>{const i=document.querySelector('.stage-preview>img');return {src:i?.src,width:i?.naturalWidth,complete:i?.complete}})()",returnByValue:true},controlFrame.session)));
+ for(let n=0;n<300;n++){if(await evaluate('window.__test.snapshot().display_ready&&window.__test.metrics.output?.[0]>0'))break;await delay(100);}
+ assert.ok(await evaluate('window.__test.metrics.output?.[0]>0'),'Workbench renderer did not start');
+ assert.equal(await evaluate("document.querySelectorAll('.workbench-render-surface>iframe').length"),1);
+ assert.equal(await evaluate("document.body.textContent.includes('打开展示窗')"),false);
+ const rendererFrame = await attachFrame('/plugin');
+ const rendererWorld = await call('Page.createIsolatedWorld',{frameId:rendererFrame.id,worldName:'renderer-test'},rendererFrame.session);
+ const renderUI=async expression=>{const r=await call('Runtime.evaluate',{expression,contextId:rendererWorld.executionContextId,returnByValue:true,awaitPromise:true},rendererFrame.session);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
+ assert.equal(await renderUI("!!document.querySelector('canvas')"),true,'No real canvas inside workbench renderer');
+ console.log('React control: one actual renderer embedded in the workbench, no display window');
  await evaluate('window.scrollTo(0,0)');await ui('window.scrollTo(0,0)');await delay(1000);
  const initialShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true},sessionId);await writeFile('/tmp/liveboom-printer-control.png',Buffer.from(initialShot.data,'base64'));
  // Resize the actual host and its opaque plugin frame; the same control instance and draft survive.
@@ -117,14 +136,36 @@ try {
   if(inner.submit.bottom>inner.viewport){const shot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('/tmp/layout-failure.png',Buffer.from(shot.data,'base64'));console.log(await ui("Array.from(document.querySelectorAll('.lb-workbench,.lb-workbench-group,[data-panel],.lb-stage,.production-center,.stage-panel')).map(e=>({tag:e.tagName,id:e.id,class:e.className,display:getComputedStyle(e).display,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top}))"));}
   assert.ok(inner.submit.top>=0&&inner.submit.bottom<=inner.viewport&&inner.submit.right<=inner.width,'Submit escaped viewport: '+JSON.stringify(inner));
   dimensions.push({width,height,scale,host,inner});
-  if(scale===1&&[720,1280,1920].includes(width)){const shot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(`/tmp/liveboom-workbench-${width}.png`,Buffer.from(shot.data,'base64'));}
+
+  const slot=await ui("(()=>{const r=document.querySelector('.lb-render-surface').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};})()");
+  const aligned=()=>evaluate(`(()=>{const r=document.querySelector('.workbench-render-surface').getBoundingClientRect(),f=document.querySelector('.plugin-control-frame').getBoundingClientRect(),s=${JSON.stringify(slot)};return Math.abs(r.x-f.x-s.x)<2&&Math.abs(r.y-f.y-s.y)<2&&Math.abs(r.width-s.width)<2&&Math.abs(r.height-s.height)<2&&getComputedStyle(document.querySelector('.workbench-render-surface')).visibility==='visible';})()`);
+  for(let n=0;n<80;n++){if(await aligned())break;await delay(50);}
+  assert.ok(await aligned(),'Actual renderer did not follow the plugin layout slot');
+  await renderUI("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))");
+  if(width===720){
+    await ui("Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='任务队列').click()");
+    for(let n=0;n<50;n++){if(await evaluate("getComputedStyle(document.querySelector('.workbench-render-surface')).visibility==='hidden'"))break;await delay(50);}
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('.workbench-render-surface')).visibility"),'hidden','Renderer covered the compact drawer');
+    await ui("document.querySelector('[aria-label=关闭侧面板]').click()");
+    for(let n=0;n<50;n++){if(await aligned())break;await delay(50);}
+    assert.ok(await aligned(),'Closing the drawer did not restore the renderer');
+  }
+  if(scale===1&&[720,1280,1920].includes(width)){await delay(200);const shot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile(`/tmp/liveboom-workbench-${width}.png`,Buffer.from(shot.data,'base64'));}
+
  }
  await writeFile('/tmp/liveboom-layout-matrix.json',JSON.stringify(dimensions,null,2));
  await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false},sessionId);await delay(250);
  // The parent navigation hides the iframe without replacing it or its draft.
  const frameIdentity=await evaluate("document.querySelector('.plugin-control-frame').src");
+ const rendererIdentity=await renderUI("document.querySelector('canvas')?.width");
  for(const title of ['历史','设置','玩法','帮助','工作台']){await evaluate(`Array.from(document.querySelectorAll('nav button')).find(b=>b.textContent.endsWith(${JSON.stringify(title)})).click()`);await delay(50);}
  assert.equal(await evaluate("document.querySelector('.plugin-control-frame').src"),frameIdentity);
+ assert.ok(rendererIdentity>0);assert.ok(await renderUI("!!document.querySelector('canvas')"),'Navigation destroyed the renderer');
+ await renderUI("dispatchEvent(new KeyboardEvent('keydown',{key:',',ctrlKey:true,bubbles:true}))");
+ for(let n=0;n<50;n++){if(await evaluate("document.querySelector('nav [aria-current=page]')?.textContent.endsWith('设置')"))break;await delay(50);}
+ assert.ok(await evaluate("document.querySelector('nav [aria-current=page]').textContent.endsWith('设置')"),'Renderer settings shortcut was lost');
+ await evaluate("Array.from(document.querySelectorAll('nav button')).find(b=>b.textContent.endsWith('工作台')).click()");
+
  console.log('Desktop workbench: eight viewport/DPI cases, bounded iframe and visible submit controls passed');
  await field('昵称 / 要展示的文字','窗口切换草稿');
  await ui("dispatchEvent(new KeyboardEvent('keydown',{key:',',ctrlKey:true,bubbles:true}))");
@@ -149,7 +190,7 @@ try {
  for(const [width,height] of [[960,640],[1920,1080],[1440,1100]]){await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},sessionId);await delay(100);}
  assert.deepEqual(await evaluate('({id:window.__test.snapshot().current.id,config:window.__test.snapshot().current.config,plan:window.__test.snapshot().current.plan,completed:window.__test.snapshot().current.completed_units})'),frozenBeforeResize,'Resizing changed the paused production session');
 
- const pausedPreview=await ui("document.querySelector('.stage-preview>img')?.src");await click('继续制作');for(let n=0;n<100;n++){if(await ui(`document.querySelector('.stage-preview>img')?.src!==${JSON.stringify(pausedPreview)}`))break;await delay(100);}assert.notEqual(await ui("document.querySelector('.stage-preview>img')?.src"),pausedPreview,'Preview remained frozen after resume');
+ await click('继续制作');assert.equal(await evaluate('window.__test.snapshot().paused'),false);
  // Scene and rule edits are made through React controls, not fixture APIs.
  await ui("(()=>{const select=Array.from(document.querySelectorAll('label')).find(l=>l.querySelector('span')?.textContent==='场景').querySelector('select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'study');select.dispatchEvent(new Event('change',{bubbles:true}));})()");
  for(let n=0;n<50;n++){if(await evaluate("window.__test.snapshot().presentation.theme==='study'"))break;await delay(100);}assert.equal(await evaluate('window.__test.snapshot().presentation.theme'),'study');
@@ -158,19 +199,19 @@ try {
  assert.equal(await evaluate('window.__test.snapshot().current.config.duration'),2,'A rule edit changed an accepted task');console.log('React control: submit, pause, scene and frozen-rule editing passed');
  await ui("(()=>{const f=document.querySelector('input[type=file]');const dt=new DataTransfer();dt.items.add(new File([new Uint8Array([137,80,78,71])],'自有头像.png',{type:'image/png'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));})()");
  for(let n=0;n<50;n++){if(await evaluate('window.__test.imports===1'))break;await delay(100);}assert.equal(await evaluate('window.__test.imports'),1);
+ await evaluate("Array.from(document.querySelectorAll('nav button')).find(b=>b.textContent.endsWith('历史')).click()");
  for(let n=0;n<600;n++){if(await evaluate('window.__test.results.length>0'))break;await delay(100);}
  assert.deepEqual(await evaluate('window.__test.results'),['completed']);
+ await evaluate("Array.from(document.querySelectorAll('nav button')).find(b=>b.textContent.endsWith('工作台')).click()");
+ console.log('Desktop workbench: hidden workbench completed the accepted task without a second renderer');
+
  for(let n=0;n<100;n++){if(await ui("document.querySelector('.history-list').textContent.includes('React 迁移验证')"))break;await delay(100);}
  assert.equal(await ui("document.querySelector('.history-list').textContent.includes('React 迁移验证')"),true);
- await evaluate("window.__test.control({op:'preview',enabled:false})");
- // A final in-flight frame can replace src while decode() is pending.
- // Wait for the visible image's load state rather than decoding a superseded frame.
- for(let n=0;n<100;n++){if(await ui("(()=>{const i=document.querySelector('.stage-preview>img');return !!i?.complete&&i.naturalWidth>0;})()"))break;await delay(100);}
- assert.equal(await ui("document.querySelector('.stage-preview>img')?.naturalWidth>0"),true,'Preview image was blocked or missing: '+await ui("document.querySelector('.stage-preview').innerHTML"));
+ assert.ok(await renderUI("document.querySelector('canvas').width>0"));
  await click('生成规则图');for(let n=0;n<50;n++){if(await ui("!Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='预览并保存 PNG').disabled"))break;await delay(100);}
  await click('预览并保存 PNG');for(let n=0;n<50;n++){if(await evaluate("!!document.querySelector('[role=dialog]')"))break;await delay(100);}assert.equal(await evaluate("!!document.querySelector('[role=dialog]')"),true);assert.equal(await evaluate('window.__test.saves'),0,'Plugin saved a PNG without trusted-host review');
  await evaluate("document.querySelector('[aria-label=关闭对话框]').click()");
- await evaluate("document.querySelector('.browser-output').style.visibility='hidden';window.scrollTo(0,0)");await delay(200);
+
 
  await registryCheck();
  // A hostile control document still cannot install/activate plugins or reach arbitrary native commands.
@@ -178,8 +219,8 @@ try {
  controlFrame=await attachFrame('/evil-control');({executionContextId}=await call('Page.createIsolatedWorld',{frameId:controlFrame.id,worldName:'control-test'},controlFrame.session));
  let rejection='';for(let n=0;n<50;n++){rejection=await ui('document.body.dataset.result');if(rejection)break;await delay(100);}assert.match(rejection,/无此权限/);assert.equal(await evaluate("window.__test.commands.some(c=>c.name==='install')"),false);
  assert.equal(networkHits,0);
- console.log('React control: real controls submit/pause/resume, frozen rule edits, scene changes, media import, completed history, actual preview, trusted PNG review and forbidden-command isolation passed');
- if(!process.env.LIVEBOOM_CONTROL_ONLY)console.log('Chromium WebGL: 3D scene, frozen two-unit plan, pause/resume, ordered unit acknowledgements, single completion, bounded preview rule PNG, five themes, six AA modes, camera persistence passed');
+ console.log('React control: real controls submit/pause/resume, frozen rule edits, scene changes, media import, completed history, embedded renderer, trusted PNG review and forbidden-command isolation passed');
+ if(!process.env.LIVEBOOM_CONTROL_ONLY)console.log('Chromium WebGL: 3D scene, frozen two-unit plan, pause/resume, ordered unit acknowledgements, single completion, bounded rule PNG, five themes, six AA modes, camera persistence passed');
 
  } else { await registryCheck(); }
 
