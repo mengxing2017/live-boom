@@ -1,17 +1,22 @@
 import {createRoot} from 'react-dom/client';
-import {DesktopApp} from '@likeboom/desktop-ui';
-import type {DesktopTransport,Snapshot,Task,PluginInfo} from '@likeboom/plugin-sdk';
-import '@likeboom/desktop-ui/styles';
-import manifest from '../../../plugins/printer-3d/manifest.json';
+import {DesktopApp} from '@liveboom/desktop-ui';
+import type {DesktopTransport,Snapshot,Task,PluginInfo} from '@liveboom/plugin-sdk';
+import '@liveboom/desktop-ui/styles';
+import currentManifest from '../../../plugins/printer-3d/manifest.json';
 import inputSchema from '../../../plugins/printer-3d/schemas/input.json';
 import configSchema from '../../../plugins/printer-3d/schemas/config.json';
 import presentationSchema from '../../../plugins/printer-3d/schemas/presentation.json';
 import examples from '../../../plugins/printer-3d/schemas/examples.json';
+import registryManifest from '../../../plugins/registry/manifest.json';
+import registryInput from '../../../plugins/registry/schemas/input.json';
+import registryConfig from '../../../plugins/registry/schemas/config.json';
+const registry = new URLSearchParams(location.search).get('kind') === 'registry';
+const manifest = registry ? registryManifest : currentManifest;
 const controlURL=new URLSearchParams(location.search).get('control');
 let displayInstance='';
 const previews=new Set<(bytes:number[])=>void>(),exports=new Set<(bytes:number[])=>void>(),metricsListeners=new Set<(v:Record<string,unknown>)=>void>();
 const documentURL=new URLSearchParams(location.search).get('document')!;
-const plugin={digest:'test',manifest,examples,input_schema:inputSchema,config_schema:configSchema,plan_schema:{},presentation_schema:presentationSchema} as PluginInfo;
+const plugin={digest:'test',manifest,examples,input_schema:registry?registryInput:inputSchema,config_schema:registry?registryConfig:configSchema,plan_schema:{},presentation_schema:presentationSchema} as PluginInfo;
 const config={duration:2,speed:4,score:true,speech:false,rules:Object.fromEntries(['manual','comment','like','follow','join','heart','beer','lollipop','other'].map(event=>[event,{enabled:true,units:1,size:'small'}]))};
 let snapshot:Snapshot={version:1,session_id:'browser3d',paused:false,display_ready:false,demo_enabled:false,demo_interval:30,presentation:{theme:'home',quality:'lite',aa:'off',fps:30,smooth:true,overlay:true,shadows:false,reflections:false,effects:true,language:'zh-CN',volume:0,mute:true,voice:'',rate:1},active:plugin,config,current:null,queue:[],history:[]};
 const listeners=new Set<(s:Snapshot)=>void>(),prefs=new Map();
@@ -28,7 +33,7 @@ const transport:DesktopTransport={
  command:async(name,args={})=>{
   testState.commands.push({name,args:{...args}});delete args.__controlDigest;
   if(name==='register_display'){displayInstance=String(args.instance);snapshot={...snapshot,display_ready:true};if(!controlURL){const task:Task={id:'printer1',plugin,input:{nickname:'迁移验证',content:'text',media:'',event:'manual',quantity:2},config,epoch:'epoch1',instance:displayInstance,status:'running',prepared:false,plan:null,work_units:2,completed_units:0,source:'demo',priority:0,created_at:Date.now(),finished_at:null,unit_completed_at:[]};snapshot={...snapshot,current:task};}emit();}
-  else if(name==='submit'||name==='submit_demo'){const input=args.input as Record<string,unknown>;const c=snapshot.config as typeof config;const count=Number(input.quantity)*c.rules[String(input.event)].units;const task:Task={id:crypto.randomUUID(),epoch:crypto.randomUUID(),plugin,input,config:c,instance:displayInstance,status:'running',prepared:false,plan:null,work_units:count,completed_units:0,source:name==='submit_demo'?'demo':'manual',priority:Number(args.priority),created_at:Date.now(),finished_at:null,unit_completed_at:[]};snapshot=snapshot.current?{...snapshot,queue:[...snapshot.queue,task]}:{...snapshot,current:task};emit();}
+  else if(name==='submit'||name==='submit_demo'){const input=args.input as Record<string,unknown>;const c=snapshot.config as typeof config;const count=registry ? 1 : Number(input.quantity)*c.rules[String(input.event)].units;const task:Task={id:crypto.randomUUID(),epoch:crypto.randomUUID(),plugin,input,config:c,instance:displayInstance,status:'running',prepared:false,plan:null,work_units:count,completed_units:0,source:name==='submit_demo'?'demo':'manual',priority:Number(args.priority),created_at:Date.now(),finished_at:null,unit_completed_at:[]};snapshot=snapshot.current?{...snapshot,queue:[...snapshot.queue,task]}:{...snapshot,current:task};emit();}
   else if(name==='configure'){snapshot={...snapshot,config:args};emit();}
   else if(name==='presentation'){snapshot={...snapshot,presentation:args};emit();}
   else if(name==='pause'||name==='resume'){testState.pause(name==='pause');}

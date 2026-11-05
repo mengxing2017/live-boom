@@ -7,16 +7,17 @@ import { createHash, generateKeyPairSync, verify } from 'node:crypto';
 import { pack } from '../tools/plugin-pack/pack.mjs';
 const hash = b => createHash('sha256').update(b).digest('hex');
 test('independent private plugin uses the same SDK and does not modify the public host', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'likeboom-private-play-'));
+  const root = await mkdtemp(join(tmpdir(), 'liveboom-private-play-'));
   try {
     const initialFiles = await (await import('node:fs/promises')).readdir('apps/desktop/dist/assets');
     const before = hash(await readFile('apps/desktop/dist/assets/' + initialFiles.find(n=>n.endsWith('.js'))));
     const manifest = JSON.parse(await readFile('plugins/registry/manifest.json', 'utf8'));
+    delete manifest.controlEntry; manifest.capabilities = [];
     manifest.id = 'private.customer'; manifest.publisher = 'private-publisher'; manifest.name = 'Private custom scene';
     await mkdir(join(root, 'schemas')); await mkdir(join(root, 'src'));
     await writeFile(join(root, 'manifest.json'), JSON.stringify(manifest));
     for (const name of ['input', 'config']) await writeFile(join(root, `schemas/${name}.json`), await readFile(`plugins/registry/schemas/${name}.json`));
-    await writeFile(join(root, 'src/index.js'), 'LikeBoom.connect(s => ({play(input) { document.getElementById("stage").textContent = input.nickname; s.result("completed"); }, dispose() {}}));');
+    await writeFile(join(root, 'src/index.js'), 'liveboom.connect(s => ({play(input) { document.getElementById("stage").textContent = input.nickname; s.result("completed"); }, dispose() {}}));');
     const key = generateKeyPairSync('ed25519');
     await writeFile(join(root, 'signing.pem'), key.privateKey.export({format:'pem',type:'pkcs8'}));
     const out = join(root, 'custom.lbplug');
