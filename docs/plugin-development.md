@@ -80,7 +80,7 @@ pnpm exec liveboom-plugin . dist/customer.lbplug /secure/publisher.pem
 
 被启用、当前/待执行/历史任务引用的版本拒绝卸载。停用并清空历史/开始新场后可卸载；卸载包保留命名空间数据，没有自动删除客户数据的操作。
 
-故障时失败、中断与完成分别记录。展示窗丢失或应用重启不会自动重播运行中任务，需要用户明确重试；应用重启后待执行队列也先暂停，展示就绪后手动继续。宿主当前只允许一个实例打开同一数据目录。
+故障时失败、中断与完成分别记录。渲染实例丢失或应用重启不会自动重播运行中任务，需要用户明确重试；应用重启后待执行队列也先暂停，玩法画面就绪后手动继续。宿主当前只允许一个实例打开同一数据目录。
 
 
 ## 0.2.1 可选扩展
@@ -102,19 +102,19 @@ pnpm exec liveboom-plugin . dist/customer.lbplug /secure/publisher.pem
 
 可选 `examples` 指向 `{name,input}[]` JSON，最多 12 项，每项经 inputSchema 校验；模板只填表，不自动提交，也不能设置可信来源。打包器会携带该文件及扩展 schema。
 
-session 生命周期可实现 `presentation/configure/control/dispose`；公共镜头代理通过受限 control 消息传递，不转移任务执行权。资源应由插件自己的 bundler 打入 IIFE，素材走 assets.resolve，不使用相对网络 fetch。像素、音效、规则图和指标均不是完成凭证。
+session 生命周期可实现 `presentation/configure/visibility/control/dispose`；公共镜头代理通过受限 control 消息传递，不转移任务执行权。资源应由插件自己的 bundler 打入 IIFE，素材走 assets.resolve，不使用相对网络 fetch。像素、音效、规则图和指标均不是完成凭证。
 
 项目未上线，仅维护当前协议，不提供历史插件信任名单或旧数据补全。无专用操作台的插件仍可使用通用表单；专用操作台统一采用视口协议。改编 MIT 代码的闭源交付仍须携带相应完整许可。
 
-## 可选独立操作台（宿主 0.2.2 起）
+## 可选独立控制文档
 
-插件可声明 `controlEntry: "web/control.html"` 及 `control.v1`，两者必须同时提供。入口是包内完整离线 HTML，打包器将其加入完整性清单和签名。没有该声明时继续使用公共 Schema 表单。私有玩法自己的 React 组件、文案和样式随私有插件构建，不由公共宿主 import。
+插件可声明 `controlEntry: "web/control.html"`、`control.v1` 和 `control.viewport.v1`，三者必须同时提供。入口是包内完整离线 HTML，打包器将其加入完整性清单和签名。没有该声明时继续使用公共 Schema 表单。私有玩法自己的 React 组件、文案和样式随私有插件构建，不由公共宿主 import。
 
 操作台位于 `sandbox="allow-scripts"` 的独立 iframe，只连接 `@liveboom/plugin-sdk/control` 的 MessagePort。客户端应在文档 load 前注册连接监听（React 可通过同步根提交及 layout effect 初始化）。SDK 提供 `connectControl(onEvent)`、`request(method,params,bytes?)` 与 `dispose()`。事件包含裁剪至当前插件的 state、JPEG preview、metrics、export.ready；历史最多 100 条，不含其他玩法任务。组件释放时关闭连接；预览使用有界 JPEG 的 data URL，避免 opaque iframe 的 Blob URL 兼容问题。
 
 请求限额：每秒 40 条，最多 8 个并发，普通参数 64 KiB；图像导入独立 ArrayBuffer 最大 8 MiB，由原生再次校验。可用 method 为 command、media.import、voices、export.review。command 仅开放本地提交、配置、画面、队列控制、当前插件偏好与媒体读取、许可查看等固定名单；不能安装/卸载/启用插件、信任发布者、重启应用、任意调用 native 或保存任意路径。破坏性清理由可信宿主确认，PNG 保存须在可信宿主预览并点击保存。
 
-操作台和展示窗分别由 control/display 角色读取指定入口，非当前插件或角色不匹配拒绝服务。操作台 CSP 与展示文档一致，只允许 data 图像，仍禁网、禁子框架、禁表单导航、禁 eval。控制台预览不启动玩法执行器，不维护第二个任务队列，也不播音。跨系统原生 WebView 隔离仍需目标系统发布验收。
+操作台和渲染文档均由唯一 control 原生窗口读取，但分处两个独立的 opaque iframe；非当前插件或非 control 窗口拒绝服务。原生桥只信任顶层随机请求凭证；控制命令白名单与渲染 task/epoch/instance 校验分别执行。文档 CSP 禁网、禁子框架、禁表单导航、禁 eval。宿主只创建一个渲染实例、一个任务队列和一个音频输出；控制文档不能自行加载第二个执行器。跨系统原生 WebView 隔离仍需目标系统发布验收。
 
 
 ## 桌面控制视口（宿主 0.2.3 起）
@@ -144,3 +144,18 @@ session 生命周期可实现 `presentation/configure/control/dispose`；公共�
 SDK 将 iframe 内的 Ctrl/Cmd+, 转为受限 `app.settings` 请求；插件仍没有任意宿主命令或系统快捷键权限。所有既有命令白名单、摘要绑定、窗口角色和不透明源沙箱边界继续生效。公共壳隐藏工作台时保持控制文档挂载并停止向其转发预览帧，草稿与控制状态不会因导航重置。
 
 控制 iframe 仅允许脚本，未开放 `allow-forms`。提交按钮应使用 `type="button"` 并通过显式处理器调用 SDK 命令；Ctrl/Cmd+Enter 也应阻止默认提交并调用相同逻辑。不能依赖浏览器原生 form 导航/提交来触发业务，也不能为此放开沙箱。
+
+
+## 工作台内嵌实际画面
+
+专用控制文档从 `@liveboom/plugin-sdk/ui` 引入 `RenderSurface`，在期望显示实际玩法的位置放置该组件，并传入受限 `request` 方法：
+
+```tsx
+<RenderSurface request={(method, params) => client.request(method, params)} />
+```
+
+容器必须有明确可用高度。组件上报 `surface.bounds`（x/y/width/height/visible，CSS 像素）；宿主校验有限数值并裁剪到控制 iframe 边界，将自己持有的渲染 iframe 覆盖在此空位。没有复制场景、JPEG 回传或插件跨源 DOM 访问。工作台失去可见性、控件遮挡画面或弹出导出审核时隐藏承载区，保留渲染器与运行状态；导航回来继续显示。宿主向渲染会话发送 `visibility`；3D 会话隐藏时用定时调度继续制作和回执、停止 GPU 绘制，避免依赖隐藏 iframe 的 requestAnimationFrame。控制文档不应在占位区内放置其他控件。
+
+一个玩法提供一个承载区。标准 3D 制作台在中央画面区预留位置，昵称登记在右侧预留位置；未提供专用控制文档的玩法由公共宿主分配画面与表单区域。不再提供 `open_display`、`resize_display` 或 display 原生窗口；尺寸依据工作台区域与 DPR 自动适配。内部 `register_display` / `display_ready` 仅表示渲染实例注册/就绪，不再表示操作系统窗口。
+
+宿主重载玩法时生成新实例，旧代次回调仍拒绝；音频首次解锁按钮位于工作台画面。SDK 的可选预览帧协议不是本方案的实际显示路径，3D 示例已停止生成和回传低帧 JPEG。

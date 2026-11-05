@@ -58,7 +58,7 @@ pnpm test
 pnpm tauri dev
 ```
 
-`pnpm dev` 仅启动前端开发服务，独立浏览器没有 Tauri transport，不能当完整应用使用。`pnpm tauri dev` 自动先打包示例插件，启动控制台后点击“打开展示窗”，选择玩法后手动输入参与信息。
+`pnpm dev` 仅启动前端开发服务，独立浏览器没有 Tauri transport，不能当完整应用使用。`pnpm tauri dev` 自动先打包示例插件，启用玩法后，实际画面直接显示在工作台内；手动输入参与信息即可运行，不创建独立展示窗口。
 
 Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安装器，构建机首次需要网络获取打包工具/运行时；不能据此视为已完成 Windows 实机验收。其他桌面平台先使用 `pnpm tauri build --no-bundle`，按需配置相应安装格式。
 
