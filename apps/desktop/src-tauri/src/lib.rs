@@ -25,23 +25,11 @@ pub const PRINTER: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../plugins/printer-3d/dist/plugin.lbplug"
 ));
-const LEGACY_REGISTRY: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../compatibility/plugins/community.registry-1.0.0.lbplug"
-));
-const LEGACY_WORKSHOP: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../compatibility/plugins/community.workshop-2d-1.0.0.lbplug"
-));
-const LEGACY_PRINTER: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../compatibility/plugins/community.printer-3d-1.0.0.lbplug"
-));
 pub fn run() {
     // Tauri can inject its bridge into subframes. Window labels alone are insufficient.
     let host_token = play_runtime::coordinator::new_id();
     let initialization = format!(
-        "if (window === window.top && ['tauri://localhost','http://tauri.localhost','https://tauri.localhost','http://127.0.0.1:5173'].includes(location.protocol + '//' + location.host)) {{ Object.defineProperty(window, '__LIKEBOOM_HOST_TOKEN__', {{value: {host_token:?}, writable: false, configurable: false}}); }}"
+        "if (window === window.top && ['tauri://localhost','http://tauri.localhost','https://tauri.localhost','http://127.0.0.1:5173'].includes(location.protocol + '//' + location.host)) {{ Object.defineProperty(window, '__LIVEBOOM_HOST_TOKEN__', {{value: {host_token:?}, writable: false, configurable: false}}); }}"
     );
     let commands: Box<dyn Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync> =
         Box::new(tauri::generate_handler![
@@ -72,24 +60,18 @@ pub fn run() {
                 .open(data.join("instance.lock"))?;
             instance_lock
                 .try_lock()
-                .map_err(|_| std::io::Error::other("LikeBoom 已在运行"))?;
+                .map_err(|_| std::io::Error::other("liveboom 已在运行"))?;
             let plugins = PluginManager::new(
                 data.join("plugins"),
                 cfg!(debug_assertions)
-                    && std::env::var("LIKEBOOM_ALLOW_UNSIGNED").as_deref() == Ok("1"),
-                vec![
-                    hash(REGISTRY),
-                    hash(PRINTER),
-                    hash(LEGACY_REGISTRY),
-                    hash(LEGACY_WORKSHOP),
-                    hash(LEGACY_PRINTER),
-                ],
+                    && std::env::var("LIVEBOOM_ALLOW_UNSIGNED").as_deref() == Ok("1"),
+                vec![hash(REGISTRY), hash(PRINTER)],
             )?;
             let first = plugins.install(REGISTRY)?;
             plugins.install(PRINTER)?;
-            let first_run = !data.join("likeboom.sqlite").exists();
+            let first_run = !data.join("liveboom.sqlite").exists();
             let coordinator =
-                Coordinator::new(Box::new(SqliteStore::open(&data.join("likeboom.sqlite"))?))?;
+                Coordinator::new(Box::new(SqliteStore::open(&data.join("liveboom.sqlite"))?))?;
             if first_run {
                 coordinator.activate(Some(first), serde_json::json!({"duration":4}))?;
             }
@@ -101,6 +83,7 @@ pub fn run() {
                 preview_at: Mutex::new(std::time::Instant::now()),
                 _instance_lock: instance_lock,
             });
+            windows::restore_control(app.handle());
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
@@ -149,7 +132,18 @@ pub fn run() {
                 .expect("static HTTP response")
         })
         .on_window_event(|window, event| {
+            if window.label() == "control"
+                && matches!(
+                    event,
+                    WindowEvent::Moved(_)
+                        | WindowEvent::Resized(_)
+                        | WindowEvent::ScaleFactorChanged { .. }
+                )
+            {
+                windows::track_control(window, false);
+            }
             if window.label() == "control" && matches!(event, WindowEvent::CloseRequested { .. }) {
+                windows::track_control(window, true);
                 let app = window.app_handle();
                 if let Some(host) = app.try_state::<Host>() {
                     let _ = host.coordinator.display_lost();
@@ -168,7 +162,7 @@ pub fn run() {
             if invoke
                 .message
                 .headers()
-                .get("x-likeboom-host")
+                .get("x-liveboom-host")
                 .and_then(|v| v.to_str().ok())
                 != Some(host_token.as_str())
             {
@@ -180,5 +174,5 @@ pub fn run() {
             commands(invoke)
         })
         .run(tauri::generate_context!())
-        .expect("LikeBoom 启动失败");
+        .expect("liveboom 启动失败");
 }
