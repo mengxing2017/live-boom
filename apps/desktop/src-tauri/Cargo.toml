@@ -1,11 +1,11 @@
 [package]
 license = "MIT"
-name = "likeboom"
+name = "liveboom"
 version.workspace = true
 edition.workspace = true
-description = "LikeBoom 公共插件宿主"
+description = "liveboom 公共插件宿主"
 [lib]
-name = "likeboom_lib"
+name = "liveboom_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
