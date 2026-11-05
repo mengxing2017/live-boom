@@ -1790,8 +1790,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "likeboom"
-version = "0.2.2"
+name = "litemap"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
+
+[[package]]
+name = "liveboom"
+version = "0.2.3"
 dependencies = [
  "play-contracts",
  "play-runtime",
@@ -1801,12 +1807,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
 ]
-
-[[package]]
-name = "litemap"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "lock_api"
@@ -2320,7 +2320,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "play-contracts"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -2329,11 +2329,11 @@ dependencies = [
 
 [[package]]
 name = "play-core"
-version = "0.2.2"
+version = "0.2.3"
 
 [[package]]
 name = "play-runtime"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "base64 0.22.1",
  "image",
