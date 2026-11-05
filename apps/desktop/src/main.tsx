@@ -1,7 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { invoke as nativeInvoke, convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { DesktopApp } from '@liveboom/desktop-ui';
 import type { DesktopTransport, Snapshot, PluginInfo } from '@liveboom/plugin-sdk';
 import '@liveboom/desktop-ui/styles';
@@ -29,4 +28,4 @@ const transport: DesktopTransport = {
   service: (request, method, params) => invoke('plugin_service', { request, method, params }),
 };
 const root = document.getElementById('root'); if (!root) throw new Error('Missing #root');
-createRoot(root).render(<DesktopApp role={getCurrentWindow().label === 'display' ? 'display' : 'control'} transport={transport} />);
+createRoot(root).render(<DesktopApp transport={transport} />);

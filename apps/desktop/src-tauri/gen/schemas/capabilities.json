@@ -1,1 +1,1 @@
-{"control-capabilities":{"identifier":"control-capabilities","description":"","local":true,"windows":["control"],"permissions":["core:event:allow-listen","core:event:allow-unlisten"]},"display-capabilities":{"identifier":"display-capabilities","description":"","local":true,"windows":["display"],"permissions":["core:event:allow-listen","core:event:allow-unlisten"]}}
+{"control-capabilities":{"identifier":"control-capabilities","description":"","local":true,"windows":["control"],"permissions":["core:event:allow-listen","core:event:allow-unlisten"]}}

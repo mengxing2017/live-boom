@@ -17,15 +17,13 @@ fn text<'a>(v: &'a Value, key: &str) -> AppResult<&'a str> {
         .ok_or_else(|| error("VALIDATION_FAILED", format!("缺少 {key}")))
 }
 pub fn emit_snapshot(app: &AppHandle, host: &Host) {
-    for (label, full) in [("control", true), ("display", false)] {
-        if let Ok(s) = host.coordinator.snapshot(full) {
-            let _ = app.emit_to(label, "snapshot", s);
-        }
+    if let Ok(s) = host.coordinator.snapshot(true) {
+        let _ = app.emit_to("control", "snapshot", s);
     }
 }
 #[tauri::command]
 pub fn snapshot(window: WebviewWindow, host: tauri::State<'_, Host>) -> AppResult<Snapshot> {
-    role(&window, &["control", "display"])?;
+    role(&window, &["control"])?;
     host.coordinator.snapshot(window.label() == "control")
 }
 #[tauri::command]
@@ -54,7 +52,7 @@ pub fn host_command(
         }
     }
     if name == "register_display" || name == "interrupt_display" {
-        role(&window, &["display"])?;
+        role(&window, &["control"])?;
         if name == "register_display" {
             host.coordinator
                 .register_display(text(&args, "instance")?.into())?;
@@ -66,17 +64,8 @@ pub fn host_command(
         match name.as_str() {
             "read_preferences" => return host.coordinator.read_preferences(text(&args, "key")?),
             "runtime_info" => {
-                return Ok(
-                    json!({"platform":std::env::consts::OS,"version":HOST_VERSION,"captureCompatibility":crate::windows::capture_mode(&app)}),
-                );
+                return Ok(json!({"platform":std::env::consts::OS,"version":HOST_VERSION}));
             }
-            "capture_mode" => crate::windows::set_capture_mode(
-                &app,
-                args["enabled"]
-                    .as_bool()
-                    .ok_or_else(|| error("VALIDATION_FAILED", "缺少 enabled"))?,
-            )
-            .map_err(|e| error("CAPTURE_MODE_ERROR", e))?,
             "restart" => {
                 host.coordinator.display_lost()?;
                 emit_snapshot(&app, &host);
@@ -163,24 +152,7 @@ pub fn host_command(
                 {
                     return Err(error("MESSAGE_LIMIT", "控制消息过大"));
                 }
-                let _ = app.emit_to("display", "preview-control", args);
-            }
-            "resize_display" => {
-                let w = args["width"].as_u64().unwrap_or(0);
-                let h = args["height"].as_u64().unwrap_or(0);
-                if ![(1280, 720), (1920, 1080), (720, 1280), (1080, 1920)].contains(&(w, h)) {
-                    return Err(error("INVALID_SIZE", "不支持的输出尺寸"));
-                }
-                if let Some(display) = tauri::Manager::get_webview_window(&app, "display") {
-                    display
-                        .set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
-                            w as u32, h as u32,
-                        )))
-                        .map_err(|e| error("WINDOW_ERROR", e))?;
-                }
-            }
-            "open_display" => {
-                crate::windows::open_display(&app).map_err(|e| error("DISPLAY_OPEN_FAILED", e))?;
+                let _ = app.emit_to("control", "preview-control", args);
             }
             "activate" => {
                 let digest = text(&args, "digest")?;
@@ -268,7 +240,7 @@ pub fn report_result(
     host: tauri::State<'_, Host>,
     request: ResultRequest,
 ) -> AppResult<()> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     host.coordinator.result(request)?;
     emit_snapshot(&app, &host);
     Ok(())
@@ -281,7 +253,7 @@ pub fn prepare_task(
     request: ResultRequest,
     input: Value,
 ) -> AppResult<()> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     host.coordinator.prepare(request, input)?;
     emit_snapshot(&app, &host);
     Ok(())
@@ -294,7 +266,7 @@ pub fn plugin_service(
     method: String,
     params: Value,
 ) -> AppResult<Value> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     if serde_json::to_vec(&params)
         .map_err(|e| error("VALIDATION_FAILED", e))?
         .len()
@@ -358,7 +330,7 @@ pub fn session_service(
     method: String,
     params: Value,
 ) -> AppResult<Value> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     if serde_json::to_vec(&params)
         .map_err(|e| error("VALIDATION_FAILED", e))?
         .len()
@@ -431,7 +403,7 @@ pub fn preview_frame(
     instance: String,
     bytes: Vec<u8>,
 ) -> AppResult<()> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     host.coordinator
         .session_plugin(&instance, "preview.frames.v1")?;
     if bytes.len() > 262144 || !bytes.starts_with(&[255, 216, 255]) {
@@ -505,7 +477,7 @@ pub fn export_preview(
     instance: String,
     bytes: Vec<u8>,
 ) -> AppResult<()> {
-    role(&window, &["display"])?;
+    role(&window, &["control"])?;
     host.coordinator
         .session_plugin(&instance, "export.png.v1")?;
     if bytes.len() > 2097152 || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
@@ -524,7 +496,7 @@ pub fn snapshot_changes(
     version: u64,
     session: String,
 ) -> AppResult<Option<Snapshot>> {
-    role(&window, &["control", "display"])?;
+    role(&window, &["control"])?;
     if !host.coordinator.changed(version, &session)? {
         return Ok(None);
     }

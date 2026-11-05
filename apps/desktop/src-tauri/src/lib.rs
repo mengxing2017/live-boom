@@ -106,7 +106,7 @@ pub fn run() {
                 } else {
                     path
                 };
-                if context.webview_label() != if control { "control" } else { "display" } {
+                if context.webview_label() != "control" {
                     return Err(AppError::new("FORBIDDEN", "入口与窗口角色不匹配"));
                 }
                 let host = context.app_handle().state::<Host>();
@@ -149,13 +149,6 @@ pub fn run() {
                     let _ = host.coordinator.display_lost();
                 }
                 app.exit(0);
-            }
-            if window.label() == "display" && matches!(event, WindowEvent::Destroyed) {
-                let app = window.app_handle();
-                if let Some(host) = app.try_state::<Host>() {
-                    let _ = host.coordinator.display_lost();
-                    ipc::emit_snapshot(app, &host);
-                }
             }
         })
         .invoke_handler(move |invoke| {
