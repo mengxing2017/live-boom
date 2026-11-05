@@ -6,7 +6,8 @@ export type ControlState = Omit<Snapshot, 'current' | 'queue' | 'history' | 'act
     queue: ControlTask[];
     history: ControlTask[];
 };
-export type ControlEvent = {
+export type ControlViewport = { width: number; height: number; dpr: number; visible: boolean; mode: 'normal' | 'compact'; revision: number; density: 'compact' | 'comfortable' };
+export type ControlEvent = { type: 'viewport'; value: ControlViewport } | { type: 'layout.reset' } | {
     type: 'state';
     value: ControlState;
 } | {
@@ -37,7 +38,7 @@ export function connectControl(onEvent: (event: ControlEvent) => void) {
         port.postMessage({ api: '1', nonce, type: 'request', id, method, params, ...(bytes ? { bytes } : {}) }, bytes ? [bytes] : []);
     });
     const init = (event: MessageEvent) => {
-        if (port || event.source !== parent || event.data?.type !== 'likeboom.control.connect' || event.data.api !== '1' || typeof event.data.nonce !== 'string' || !event.ports[0])
+        if (port || event.source !== parent || event.data?.type !== 'liveboom.control.connect' || event.data.api !== '1' || typeof event.data.nonce !== 'string' || !event.ports[0])
             return;
         port = event.ports[0];
         nonce = event.data.nonce;
@@ -54,13 +55,16 @@ export function connectControl(onEvent: (event: ControlEvent) => void) {
                 }
                 return;
             }
+            if (data.type === 'viewport' && ['compact','comfortable'].includes(data.value?.density)) document.documentElement.dataset.density = data.value.density;
             onEvent(data as ControlEvent);
         };
         port.start();
         port.postMessage({ api: '1', nonce, type: 'ready' });
     };
+    const shortcut = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key === ',') { event.preventDefault(); void request('app.settings').catch(() => {}); } };
+    addEventListener('keydown', shortcut);
     addEventListener('message', init);
-    return { request, resize(height: number) { port?.postMessage({ api: '1', nonce, type: 'resize', height }); }, dispose() { removeEventListener('message', init); port?.close(); for (const p of pending.values()) {
+    return { request, dispose() { removeEventListener('keydown', shortcut); removeEventListener('message', init); port?.close(); for (const p of pending.values()) {
             clearTimeout(p.timer);
             p.reject(new Error('操作台已关闭'));
         } pending.clear(); } };

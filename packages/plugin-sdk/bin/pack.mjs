@@ -9,6 +9,7 @@ export async function pack(directory, output, keyPath) {
   const root = resolve(directory);
   const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
   const files = {};
+  if (Boolean(manifest.controlEntry) !== Boolean(manifest.capabilities?.includes('control.v1')) || Boolean(manifest.controlEntry) !== Boolean(manifest.capabilities?.includes('control.viewport.v1'))) throw new Error('Control documents require control.v1, control.viewport.v1 and controlEntry together');
   const safe = name => typeof name === 'string' && /^[A-Za-z0-9._/-]+$/.test(name) && !name.split('/').some(p => !p || p === '.' || p === '..');
   const localRead = async name => {
     if (!safe(name)) throw new Error('Unsafe package path');
@@ -27,7 +28,7 @@ export async function pack(directory, output, keyPath) {
     const sdk = (await readFile(new URL('../src/client.js', import.meta.url), 'utf8')).replace('export function connectPlugin', 'function connectPlugin');
     const code = await readFile(join(root, 'src/index.js'), 'utf8');
     if (/<\/script/i.test(code)) throw new Error('Use an external bundler for embedded closing script tags');
-    html = `<html lang="zh-CN"><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#10182d;color:white}main{height:100%;display:grid;place-content:center;text-align:center}h1{font-size:clamp(32px,7vw,90px);overflow-wrap:anywhere}p{color:#acbbdf}</style><main id="stage"></main><script>${sdk}\nconst LikeBoom=Object.freeze({connect:connectPlugin});\n${code}</script></html>`;
+    html = `<html lang="zh-CN"><meta charset="utf-8"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#10182d;color:white}main{height:100%;display:grid;place-content:center;text-align:center}h1{font-size:clamp(32px,7vw,90px);overflow-wrap:anywhere}p{color:#acbbdf}</style><main id="stage"></main><script>${sdk}\nconst liveboom=Object.freeze({connect:connectPlugin});\n${code}</script></html>`;
   }
   add(manifest.entry, html);
   if (manifest.controlEntry) add(manifest.controlEntry, await localRead(manifest.controlEntry));
@@ -40,8 +41,8 @@ export async function pack(directory, output, keyPath) {
     }
   }
   await assets(join(root, 'assets'));
-  try { add('THIRD_PARTY_NOTICES', await readFile(join(root, 'THIRD_PARTY_NOTICES'))); } catch (e) { if (e.code !== 'ENOENT') throw e; add('THIRD_PARTY_NOTICES', 'No bundled third-party runtime code besides LikeBoom Plugin SDK.'); }
-  add('LICENSE-LikeBoom-SDK', await readFile(new URL('../LICENSE', import.meta.url)));
+  try { add('THIRD_PARTY_NOTICES', await readFile(join(root, 'THIRD_PARTY_NOTICES'))); } catch (e) { if (e.code !== 'ENOENT') throw e; add('THIRD_PARTY_NOTICES', 'No bundled third-party runtime code besides liveboom Plugin SDK.'); }
+  add('LICENSE-liveboom-SDK', await readFile(new URL('../LICENSE', import.meta.url)));
   const sorted = Object.fromEntries(Object.entries(files).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
   // Rust BTreeMap and JS bytewise ASCII ordering must agree for signatures.
   const integrity = Object.fromEntries(Object.keys(sorted).sort().map(path => [path, hash(Buffer.from(sorted[path], 'base64'))]));
@@ -54,12 +55,12 @@ export async function pack(directory, output, keyPath) {
     await mkdir(dirname(resolve(output)), { recursive: true });
     await writeFile(`${output}.publisher.json`, JSON.stringify({ publisher: manifest.publisher, publicKey: der.subarray(-32).toString('base64') }, null, 2));
   }
-  const bytes = Buffer.from(JSON.stringify({ format: 'likeboom.plugin.v1', files: sorted, integrity, signature }));
+  const bytes = Buffer.from(JSON.stringify({ format: 'liveboom.plugin.v1', files: sorted, integrity, signature }));
   await mkdir(dirname(resolve(output)), { recursive: true }); await writeFile(output, bytes);
   return { path: output, digest: hash(bytes) };
 }
 export async function main() {
-  const directory = process.argv[2]; if (!directory) throw new Error('Usage: likeboom-plugin <plugin-directory> [output.lbplug] [ed25519-private.pem]');
+  const directory = process.argv[2]; if (!directory) throw new Error('Usage: liveboom-plugin <plugin-directory> [output.lbplug] [ed25519-private.pem]');
   const out = process.argv[3] ?? join(directory, 'dist/plugin.lbplug');
   console.log(await pack(directory, out, process.argv[4]));
 }

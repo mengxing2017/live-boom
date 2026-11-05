@@ -142,7 +142,7 @@ impl PluginManager {
         }
         let bundle: Bundle =
             serde_json::from_slice(bytes).map_err(|e| error("INVALID_PACKAGE", e))?;
-        if bundle.format != "likeboom.plugin.v1"
+        if bundle.format != "liveboom.plugin.v1"
             || bundle.files.len() > MAX_FILES
             || bundle.files.len() != bundle.integrity.len()
         {
@@ -212,6 +212,7 @@ impl PluginManager {
             "preview.frames.v1",
             "export.png.v1",
             "control.v1",
+            "control.viewport.v1",
         ];
         if manifest
             .capabilities
@@ -240,6 +241,17 @@ impl PluginManager {
                 != manifest.control_entry.is_some()
         {
             return Err(error("INVALID_MANIFEST", "能力与 schema 不匹配"));
+        }
+        if manifest
+            .capabilities
+            .iter()
+            .any(|c| c == "control.viewport.v1")
+            != manifest.capabilities.iter().any(|c| c == "control.v1")
+        {
+            return Err(error(
+                "INVALID_MANIFEST",
+                "操作台必须同时声明 control.v1 和 control.viewport.v1",
+            ));
         }
         if manifest.work_units_selector_field.is_some() != manifest.work_units_rules_field.is_some()
             || (manifest.work_units_selector_field.is_some() && manifest.work_units_field.is_none())
