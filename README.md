@@ -1,4 +1,4 @@
-# LikeBoom
+# liveboom
 
 Rust + React 本地互动娱乐桌面宿主。公共服务运行在 Tauri 进程内，不依赖云服务；玩法以可离线安装的 `.lbplug` 插件交付。提供昵称登记与 3D 制作台两个示例，不包含平台采集、支付或会员流程。
 
@@ -11,7 +11,6 @@ packages/plugin-sdk/      传输协议、隔离文档客户端、独立插件打
 packages/desktop-ui/      通过 transport 注入的公共控制台和展示宿主
 plugins/registry/         开源示例：昵称登记
 plugins/printer-3d/       开源示例：3D 制作台
-compatibility/            退役二维示例源码与旧版本精确包（非活跃子项目）
 ```
 
 共 8 个工作区包（3 个 Rust 库、2 个 JS 公共包、1 个桌面应用、2 个玩法）；桌面应用的 npm 与 Cargo 清单属于同一个应用。闭源玩法单独建仓，一仓一包，不增加宿主、服务或客户分支。
@@ -43,7 +42,7 @@ devbox run desktop:check
 devbox install
 # 工具链切换后，仅清理桌面宿主制品以强制重新链接
 # 不需要删除整个 target 或改系统 glibc
-devbox run -- cargo clean -p likeboom
+devbox run -- cargo clean -p liveboom
 devbox run desktop:verify
 devbox run desktop
 ```
@@ -63,6 +62,10 @@ pnpm tauri dev
 
 Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安装器，构建机首次需要网络获取打包工具/运行时；不能据此视为已完成 Windows 实机验收。其他桌面平台先使用 `pnpm tauri build --no-bundle`，按需配置相应安装格式。
 
+## 开发数据库重置
+
+更新代码后若启动报 `STORAGE_CORRUPT: unknown variant legacy_local`，是旧开发数据库与当前结构不匹配。项目未上线，不提供旧数据兼容；请先退出应用，按[开发数据目录与删库重置](docs/development-data-reset.md)备份并重置。Linux 默认数据库为 `~/.local/share/com.liveboom.desktop/liveboom.sqlite`（设置 `XDG_DATA_HOME` 时以其为准），不在项目目录中；重新编译不会清理它。
+
 ## 插件与验证
 
 - [3D 制作台使用、恢复与待验项目](docs/printer-3d.md)
@@ -73,4 +76,4 @@ Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安�
 
 公共仓库自有代码与两个示例采用 [MIT](LICENSE)。闭源插件在独立仓库自行声明许可证；交付包保留 SDK 许可及所用依赖声明。这里的隔离是源码依赖、服务权限与交付边界，分发到客户机器的 JS/素材仍可被提取，不提供源码保密或 DRM 保证。
 
-3D 插件 **1.1.0** 包含独立 React 操作台；旧 1.0.0 需在公共宿主管理中显式切换并启用新版。操作说明见 [3D 制作台](docs/printer-3d.md)，界面和样式随插件交付，公共宿主不导入玩法专属组件。
+宿主 **0.2.3** 使用桌面工作台；3D 插件 **1.2.0** 与昵称登记 **1.1.0** 提供有界 React 操作台。项目尚未上线，仅维护当前协议与数据结构，不提供旧包、旧操作台或旧数据库迁移兼容。操作说明见 [3D 制作台](docs/printer-3d.md)，界面和样式随插件交付，公共宿主不导入玩法专属组件。
