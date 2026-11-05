@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { OutputAudio } from './OutputAudio';
-import { sameContext } from '@likeboom/plugin-sdk';
-import type { DesktopTransport, PlaybackContext, ResultRequest, Snapshot, Task } from '@likeboom/plugin-sdk';
+import { sameContext } from '@liveboom/plugin-sdk';
+import type { DesktopTransport, PlaybackContext, ResultRequest, Snapshot, Task } from '@liveboom/plugin-sdk';
 
 const contextOf = (t: Task): PlaybackContext => ({ task_id: t.id, epoch: t.epoch, instance: t.instance });
 export function PluginHost({ transport, snapshot }: { transport: DesktopTransport; snapshot: Snapshot }) {
@@ -102,7 +102,7 @@ export function PluginHost({ transport, snapshot }: { transport: DesktopTranspor
     };
     channel.port1.start();
     // Opaque sandbox origins cannot be named as targetOrigin. Transfer once to this exact frame.
-    iframe.current?.contentWindow?.postMessage({ type: 'likeboom.connect', api: '1', nonce: nonce.current }, '*', [channel.port2]);
+    iframe.current?.contentWindow?.postMessage({ type: 'liveboom.connect', api: '1', nonce: nonce.current }, '*', [channel.port2]);
   };
 
   useEffect(() => {

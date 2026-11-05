@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import type {DesktopTransport,Snapshot} from '@likeboom/plugin-sdk';
+import type {DesktopTransport,Snapshot} from '@liveboom/plugin-sdk';
 type Fields=Record<string,unknown>;
 export function PresentationControl({transport,snapshot,renderFields,defaults}:{transport:DesktopTransport;snapshot:Snapshot;renderFields:(schema:Fields,value:Fields,onChange:(v:Fields)=>void)=>React.ReactNode;defaults:(s:Fields)=>Fields}){
  const [metrics,setMetrics]=useState<Fields>({});
