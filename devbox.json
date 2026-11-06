@@ -55,12 +55,21 @@
         "x86_64-linux",
         "aarch64-linux"
       ]
+    },
+    "github:NixOS/nixpkgs/8edc0c72e3a38faf5434e40d1f19431125fe4b30#mesa": {
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
     }
   },
   "shell": {
     "init_hook": [
       "rustup run 1.98.0 rustc --version >/dev/null 2>&1 || rustup toolchain install 1.98.0",
-      "rustup default 1.98.0"
+      "rustup default 1.98.0",
+      "if [ \"$(uname -s)\" = Linux ] && [ -z \"${__EGL_VENDOR_LIBRARY_FILENAMES:-}${__EGL_VENDOR_LIBRARY_DIRS:-}\" ] && [ -d \"$PWD/.devbox/nix/profile/default/share/glvnd/egl_vendor.d\" ]; then export __EGL_VENDOR_LIBRARY_DIRS=\"$PWD/.devbox/nix/profile/default/share/glvnd/egl_vendor.d\"; fi",
+      "if [ \"$(uname -s)\" = Linux ] && [ -z \"${GBM_BACKENDS_PATH:-}\" ] && [ -d \"$PWD/.devbox/nix/profile/default/lib/gbm\" ]; then export GBM_BACKENDS_PATH=\"$PWD/.devbox/nix/profile/default/lib/gbm\"; fi",
+      "if [ \"$(uname -s)\" = Linux ] && [ -z \"${LIBGL_DRIVERS_PATH:-}\" ] && [ -d \"$PWD/.devbox/nix/profile/default/lib/dri\" ]; then export LIBGL_DRIVERS_PATH=\"$PWD/.devbox/nix/profile/default/lib/dri\"; fi"
     ],
     "scripts": {
       "check": "pnpm check && cargo check",
