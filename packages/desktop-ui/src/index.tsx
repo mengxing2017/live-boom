@@ -30,12 +30,13 @@ function Control({ transport, snapshot, connectionError }: { transport: DesktopT
   const [view, setView] = useState<View>('workspace'), [layoutReset, setLayoutReset] = useState(0);
   useEffect(() => { const keydown = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === ',') { e.preventDefault(); setView('settings'); } }; addEventListener('keydown', keydown); const command = () => setView('settings'); addEventListener('liveboom:settings', command); return () => { removeEventListener('keydown', keydown); removeEventListener('liveboom:settings', command); }; }, []);
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [pluginsLoaded,setPluginsLoaded] = useState(false), [switching,setSwitching] = useState(false);
   const [input, setInput] = useState<Fields>({});
   const [mediaFiles,setMediaFiles]=useState<[string,number][]>([]);
   const [license,setLicense]=useState('');const [mediaTarget,setMediaTarget]=useState('');const [sourceFilter,setSourceFilter]=useState('all');
   const [priority,setPriority]=useState(false); const [demoInterval,setDemoInterval]=useState(30);
   const [feedback, setFeedback] = useState(''); const [busy, setBusy] = useState(false);
-  const refresh = () => transport.plugins().then(setPlugins);
+  const refresh = () => transport.plugins().then(value=>{setPlugins(value);setPluginsLoaded(true);});
   useEffect(() => { void refresh().catch(e => setFeedback(describe(e))); }, [transport]);
   useEffect(() => { setInput(snapshot?.active ? defaults(snapshot.active.input_schema) : {}); }, [snapshot?.active?.digest]);
   const act = async (name: string, args: Fields = {}) => {
@@ -48,13 +49,24 @@ function Control({ transport, snapshot, connectionError }: { transport: DesktopT
     try { await transport.command(demo?'submit_demo':'submit', { command_id: crypto.randomUUID(), input, priority:priority?1:0 }); setInput(snapshot?.active ? defaults(snapshot.active.input_schema) : {}); setFeedback('已加入队列'); }
     catch (e) { setFeedback(describe(e)); } finally { setBusy(false); }
   };
+  const selectPlugin = async (digest:string) => {
+    const plugin=plugins.find(p=>p.digest===digest);if(!plugin||switching)return;
+    setSwitching(true);setFeedback('');
+    try {
+      await transport.command('activate',{digest,config:defaults(plugin.config_schema)});
+      await refresh();setView('workspace');
+    } catch(e) {setFeedback(describe(e));}
+    finally {setSwitching(false);}
+  };
+  const unavailable = Boolean(pluginsLoaded && snapshot?.active && !plugins.some(p=>p.digest===snapshot.active!.digest));
   const custom = Boolean(snapshot?.active?.manifest.controlEntry);
-  return <AppShell view={view} onView={setView} name={snapshot?.active?.manifest.name ?? '选择玩法'} ready={Boolean(snapshot?.display_ready)} paused={Boolean(snapshot?.paused)} queued={snapshot?.queue.length ?? 0} message={feedback || connectionError} onReset={() => { setLayoutReset(n => n + 1); setView('workspace'); }}>
+  return <AppShell view={view} onView={setView} name={snapshot?.active?.manifest.name ?? '选择玩法'} plugins={plugins} activeDigest={snapshot?.active?.digest??''} switching={switching} onSelect={digest=>void selectPlugin(digest)} ready={Boolean(snapshot?.display_ready)} paused={Boolean(snapshot?.paused)} queued={snapshot?.queue.length ?? 0} message={feedback || connectionError} onReset={() => { setLayoutReset(n => n + 1); setView('workspace'); }}>
     <PluginsView visible={view === 'plugins'} plugins={plugins} snapshot={snapshot} act={act} onError={setFeedback}/>
     <div className="workspace-view" hidden={view !== 'workspace'}>
     {!snapshot?.active && <div className="empty-workspace"><h1>开始本地互动</h1><p>选择已安装玩法，或导入新的玩法包。</p><button className="primary" onClick={async () => setView('plugins')}>选择玩法</button></div>}
-    {custom && snapshot && <PluginControlHost key={snapshot.active!.digest} snapshot={snapshot} transport={transport} visible={view === 'workspace'} resetKey={layoutReset}/>}
-    {!custom && snapshot?.active && <div className="generic-workspace-shell"><div className="generic-render display-root"><PluginHost key={snapshot.active.digest} snapshot={snapshot} transport={transport} visible={view==='workspace'}/></div><div className="generic-workspace">
+    {unavailable && <div className="empty-workspace" role="alert"><h1>当前玩法包不可用</h1><p>当前选中的包未通过本次安装校验。请在顶部选择已验证的玩法重新启用，已有记录不会被删除。</p><button disabled={switching} onClick={()=>void refresh().catch(e=>setFeedback(describe(e)))}>重新检查已安装玩法</button></div>}
+    {!unavailable && custom && snapshot && <PluginControlHost key={snapshot.active!.digest} snapshot={snapshot} transport={transport} visible={view === 'workspace'} resetKey={layoutReset}/>}
+    {!unavailable && !custom && snapshot?.active && <div className="generic-workspace-shell"><div className="generic-render display-root"><PluginHost key={snapshot.active.digest} snapshot={snapshot} transport={transport} visible={view==='workspace'}/></div><div className="generic-workspace">
 
     {snapshot?.active && <form className="control-form" onSubmit={e => { e.preventDefault(); void submit(); }}>{snapshot.active.examples?.length>0&&<label>本地示例模板<select defaultValue="" onChange={e=>{const example=snapshot.active?.examples[Number(e.target.value)];if(example)setInput(example.input);}}><option value="">选择示例（不会自动提交）</option>{snapshot.active.examples.map((example,i)=><option key={i} value={i}>{example.name}</option>)}</select></label>}<SchemaFields schema={snapshot.active.input_schema} value={input} onChange={setInput} /><label><input type="checkbox" checked={priority} onChange={e=>setPriority(e.target.checked)}/>优先排队（不打断当前）</label><button disabled={busy}>{busy ? '提交中' : '手动加入队列'}</button><button type="button" disabled={busy} onClick={async ()=>void submit(true)}>作为离线模拟事件提交</button>
     {snapshot.active.manifest.capabilities.includes('media.own.v1')&&<label><select aria-label="图像引用目标字段" value={mediaTarget} onChange={e=>setMediaTarget(e.target.value)}><option value="">选择引用目标字段（可稍后粘贴）</option>{Object.entries((snapshot.active.input_schema.properties??{}) as Fields).filter(([,p])=>(p as Fields).type==='string').map(([k,p])=><option key={k} value={k}>{String((p as Fields).title??k)}</option>)}</select>导入自有图像（PNG/JPEG，最大 8 MiB）<input type="file" accept="image/png,image/jpeg" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>8*1024*1024){setFeedback('图片最大 8 MiB');return;}void file.arrayBuffer().then(bytes=>transport.importMedia?.(Array.from(new Uint8Array(bytes)))).then(reference=>{if(reference){if(mediaTarget)setInput(v=>({...v,[mediaTarget]:reference}));setFeedback('已安全导入：'+reference);}}).catch(e=>setFeedback(describe(e)));}}/></label>}

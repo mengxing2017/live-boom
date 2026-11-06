@@ -1,3 +1,4 @@
+import {describe} from './state/useSnapshot';
 import { useEffect, useRef, useState } from 'react';
 import { OutputAudio } from './OutputAudio';
 import { sameContext } from '@liveboom/plugin-sdk';
@@ -31,13 +32,13 @@ export function PluginHost({ transport, snapshot, visible = true }: { transport:
     const task = latest.current.current;
     if (task && reported.current !== task.epoch) {
       reported.current = task.epoch;
-      void transport.result({ ...contextOf(task), status: 'failed' }).catch(e => { if (latest.current.current && sameContext(contextOf(task), contextOf(latest.current.current))) { reported.current = ''; setError(String(e)); } });
+      void transport.result({ ...contextOf(task), status: 'failed' }).catch(e => { if (latest.current.current && sameContext(contextOf(task), contextOf(latest.current.current))) { reported.current = ''; setError(describe(e)); } });
     }
   };
   useEffect(() => {
     let active = true;
     readyRef.current = false; setReady(false); setError(''); setUrl('');assetCache.current.clear();
-    void transport.document(digest).then(value => { if (active) setUrl(value); }).catch(e => { if (active) setError(String(e)); });
+    void transport.document(digest).then(value => { if (active) setUrl(value); }).catch(e => { if (active) setError(describe(e)); });
     const timeout = setTimeout(() => { if (active && !readyRef.current) setError('插件加载超时，请重新加载玩法'); }, 10000);
     return () => { active = false; clearTimeout(timeout); send('dispose'); audio.current.stop(); port.current?.close(); port.current = null; };
   }, [digest, transport, reload]);
@@ -57,7 +58,7 @@ export function PluginHost({ transport, snapshot, visible = true }: { transport:
       }
       if (data.type === 'export.png') {
         if (!latest.current.active?.manifest.capabilities.includes('export.png.v1') || !(data.bytes instanceof ArrayBuffer) || data.bytes.byteLength > 2097152 || performance.now()-lastExport < 1000) return;
-        lastExport=performance.now(); void transport.exportPng?.(instance.current,Array.from(new Uint8Array(data.bytes))).catch(e => setError(String(e))); return;
+        lastExport=performance.now(); void transport.exportPng?.(instance.current,Array.from(new Uint8Array(data.bytes))).catch(e => setError(describe(e))); return;
       }
       let size: number; try { size = JSON.stringify(data).length; } catch { fail('插件消息无法序列化'); return; }
       if (++count > 100 || size > 65536) { fail('插件消息超过限制'); return; }
@@ -111,7 +112,7 @@ export function PluginHost({ transport, snapshot, visible = true }: { transport:
   useEffect(() => {
     if (ready && (registered.current !== instance.current || !snapshot.display_ready)) {
       registered.current = instance.current;
-      void transport.command('register_display', { instance: instance.current }).then(() => { send('session',{config:latest.current.config}); send('presentation', {value:latest.current.presentation}); send('visibility',{visible:visibleRef.current}); setStarted(true); }).catch(e => { registered.current = ''; setError(String(e)); });
+      void transport.command('register_display', { instance: instance.current }).then(() => { send('session',{config:latest.current.config}); send('presentation', {value:latest.current.presentation}); send('visibility',{visible:visibleRef.current}); setStarted(true); }).catch(e => { registered.current = ''; setError(describe(e)); });
     }
   }, [ready, snapshot.display_ready, transport]);
   useEffect(() => {
@@ -137,7 +138,7 @@ export function PluginHost({ transport, snapshot, visible = true }: { transport:
     let active=true; let unlisten: (()=>void) | undefined;
     void transport.subscribeControl?.(value=>{
       if(value.op==='speechTest'&&latest.current.active?.manifest.capabilities.includes('audio.own.v1')) { const p=latest.current.presentation;void audio.current.say(String(value.text??'声音试听 / Audio test'),String(p.language??'zh-CN'),'audition',Number(p.rate??1),Number(p.volume??.4),String(p.voice??'')); }
-      else if(value.op==='audioTest'&&latest.current.active?.manifest.capabilities.includes('audio.own.v1')) { void transport.sessionService?.(instance.current,'assets.resolve',{path:value.path}).then(uri=>audio.current.play(String(uri),.4,false)).catch(e=>setError(String(e))); }
+      else if(value.op==='audioTest'&&latest.current.active?.manifest.capabilities.includes('audio.own.v1')) { void transport.sessionService?.(instance.current,'assets.resolve',{path:value.path}).then(uri=>audio.current.play(String(uri),.4,false)).catch(e=>setError(describe(e))); }
       else send('preview.control',{value});
     }).then(fn=>{if(active)unlisten=fn;else fn();});
     return ()=>{active=false;unlisten?.();};
@@ -148,10 +149,10 @@ export function PluginHost({ transport, snapshot, visible = true }: { transport:
       const s = latest.current; const task = s.current;
       if (!task || s.paused || task.instance !== instance.current || reported.current === task.epoch) return;
       elapsed.current += delta;
-      if (delta > 15000) { audio.current.stop();setReady(false);setError('系统休眠或展示中断，请重新加载玩法');void transport.command('interrupt_display').catch(e=>setError(String(e)));return; }
+      if (delta > 15000) { audio.current.stop();setReady(false);setError('系统休眠或展示中断，请重新加载玩法');void transport.command('interrupt_display').catch(e=>setError(describe(e)));return; }
       if (elapsed.current > (task.prepared ? Math.max(120000,task.work_units * 45000) : 10000)) fail('插件执行超时');
     }, 1000);
     return () => clearInterval(timer);
   }, [transport]);
-  return <>{!unlocked && snapshot.active?.manifest.capabilities.includes('audio.own.v1') && <button className="audio-unlock" onClick={() => { void audio.current.unlock().then(()=>setUnlocked(true)).catch(e=>setError(String(e))); }}>点击启用本窗口声音 / Enable audio</button>}<iframe key={reload} ref={iframe} title={snapshot.active?.manifest.name ?? '玩法'} sandbox="allow-scripts" allow="camera 'none'; microphone 'none'; geolocation 'none'" src={url || undefined} onLoad={url ? connect : undefined} />{error && <p className="display-error">{error}<button onClick={() => setReload(n=>n+1)}>重新加载玩法</button></p>}<span className="source-label">本地互动 · {snapshot.current?.source === 'demo' ? '离线演示 / DEMO' : snapshot.current ? '手动输入' : '未接入平台'}</span></>;
+  return <>{!unlocked && snapshot.active?.manifest.capabilities.includes('audio.own.v1') && <button className="audio-unlock" onClick={() => { void audio.current.unlock().then(()=>setUnlocked(true)).catch(e=>setError(describe(e))); }}>点击启用本窗口声音 / Enable audio</button>}<iframe key={reload} ref={iframe} title={snapshot.active?.manifest.name ?? '玩法'} sandbox="allow-scripts" allow="camera 'none'; microphone 'none'; geolocation 'none'" src={url || undefined} onLoad={url ? connect : undefined} />{error && <p className="display-error">{error}<button onClick={() => setReload(n=>n+1)}>重新加载玩法</button></p>}<span className="source-label">本地互动 · {snapshot.current?.source === 'demo' ? '离线演示 / DEMO' : snapshot.current ? '手动输入' : '未接入平台'}</span></>;
 }

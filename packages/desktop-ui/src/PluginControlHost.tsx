@@ -1,3 +1,4 @@
+import {describe} from './state/useSnapshot';
 import { PluginHost } from './PluginHost';
 import { Modal } from '@liveboom/plugin-sdk/ui';
 import { useConfirm } from './components/ConfirmProvider';
@@ -29,7 +30,7 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
     const send = (type: string, body: Record<string, unknown> = {}, transfer: Transferable[] = []) => channel.current?.postMessage({ api: '1', nonce: nonce.current, type, ...body }, transfer);
     useEffect(() => { let active = true; void transport.document(digest, 'control').then(value => { if (active)
         setUrl(value); }).catch(e => { if (active)
-        setError(String(e)); }); return () => { active = false; channel.current?.close(); channel.current = null; }; }, [transport, digest]);
+        setError(describe(e)); }); return () => { active = false; channel.current?.close(); channel.current = null; }; }, [transport, digest]);
     const sendViewport = () => { const el = frame.current; if (el) send('viewport', { value: { width: el.clientWidth, height: el.clientHeight, dpr: devicePixelRatio, visible: visibility.current, density: document.documentElement.dataset.density === 'comfortable' ? 'comfortable' : 'compact', mode: el.clientWidth < 1180 ? 'compact' : 'normal', revision: ++viewportRevision.current } }); };
     useEffect(() => { let raf = 0; const update = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(sendViewport); }; const observer = new ResizeObserver(update); if (frame.current) observer.observe(frame.current); addEventListener('resize', update); addEventListener('liveboom:appearance', update); update(); return () => { observer.disconnect(); removeEventListener('resize', update); removeEventListener('liveboom:appearance', update); cancelAnimationFrame(raf); }; }, [digest]);
     useEffect(() => { sendViewport(); }, [visible]);
@@ -153,5 +154,5 @@ export function PluginControlHost({ transport, snapshot, visible = true, resetKe
         frame.current?.contentWindow?.postMessage({ type: 'liveboom.control.connect', api: '1', nonce: token }, '*', [c.port2]);
     };
     return <div className="plugin-control-shell"><div className="plugin-frame-viewport"><iframe ref={frame} className="plugin-control-frame" title={`${snapshot.active!.manifest.name}操作台`} sandbox="allow-scripts" allow="camera 'none'; microphone 'none'; geolocation 'none'" src={url || undefined} onLoad={url ? connect : undefined}/></div><div className="workbench-render-surface display-root" style={{left:surface.x,top:surface.y,width:surface.width,height:surface.height,visibility:visible&&surface.visible&&!review?'visible':'hidden'}}><PluginHost key={digest} snapshot={snapshot} transport={transport} visible={visible&&surface.visible&&!review}/></div>{error && <p role="alert">{error}</p>}<Modal open={Boolean(review)} title="宿主确认保存规则图片" onClose={() => setReview(null)}><img src={exportUrl} alt="待保存的规则图片"/><button onClick={() => { if (review)
-        void transport.savePng?.(review).then(() => setReview(null)).catch(e => setError(String(e))); }}>选择位置并保存 PNG</button></Modal></div>;
+        void transport.savePng?.(review).then(() => setReview(null)).catch(e => setError(describe(e))); }}>选择位置并保存 PNG</button></Modal></div>;
 }
