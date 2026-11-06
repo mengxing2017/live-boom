@@ -21,7 +21,11 @@ const transport: DesktopTransport = {
   snapshot: () => invoke<Snapshot>('snapshot'),
   subscribe: callback => listen<Snapshot>('snapshot', event => callback(event.payload)),
   plugins: () => invoke<PluginInfo[]>('plugins'),
-  document: async (digest, surface = 'display') => convertFileSrc(surface === 'control' ? `${digest}/control` : digest, 'lbplugin'),
+  document: async (digest, surface = 'display') => {
+    await invoke('host_command',{name:'check_document',args:{digest,surface}});
+    // convertFileSrc encodes its entire argument, including structural slashes.
+    return convertFileSrc(digest, 'lbplugin') + (surface === 'control' ? '/control' : '');
+  },
   command: (name, args = {}) => invoke('host_command', { name, args }),
   result: request => invoke('report_result', { request }),
   prepare: (request, input) => invoke('prepare_task', { request, input }),

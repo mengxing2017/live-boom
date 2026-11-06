@@ -62,6 +62,21 @@ pub fn host_command(
     } else {
         role(&window, &["control"])?;
         match name.as_str() {
+            "check_document" => {
+                let digest = text(&args, "digest")?;
+                let current = host.coordinator.snapshot(false)?.active;
+                if current.as_ref().is_none_or(|p| p.digest != digest) {
+                    return Err(error("STALE_PLUGIN", "玩法已切换，请重新选择当前玩法"));
+                }
+                let surface = text(&args, "surface")?;
+                if !["control", "display"].contains(&surface) {
+                    return Err(error("INVALID_SURFACE", "无效的玩法入口"));
+                }
+                host.plugins
+                    .lock()
+                    .map_err(|_| error("STATE_UNAVAILABLE", "插件锁错误"))?
+                    .document_for(digest, surface == "control")?;
+            }
             "read_preferences" => return host.coordinator.read_preferences(text(&args, "key")?),
             "runtime_info" => {
                 return Ok(json!({"platform":std::env::consts::OS,"version":HOST_VERSION}));

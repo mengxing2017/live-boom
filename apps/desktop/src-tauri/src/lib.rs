@@ -1,4 +1,5 @@
 mod ipc;
+mod plugin_protocol;
 mod windows;
 use play_contracts::*;
 use play_runtime::{
@@ -99,13 +100,7 @@ pub fn run() {
         .register_uri_scheme_protocol("lbplugin", |context, request| {
             // Both surfaces serve only verified current-plugin documents, in opaque sandboxes.
             let result = (|| -> AppResult<String> {
-                let path = request.uri().path().trim_start_matches('/');
-                let control = path.ends_with("/control");
-                let digest = if control {
-                    path.strip_suffix("/control").unwrap_or("")
-                } else {
-                    path
-                };
+                let (digest, control) = plugin_protocol::document_route(request.uri().path())?;
                 if context.webview_label() != "control" {
                     return Err(AppError::new("FORBIDDEN", "入口与窗口角色不匹配"));
                 }
@@ -121,7 +116,10 @@ pub fn run() {
             })();
             let (status, body) = match result {
                 Ok(html) => (200, html),
-                Err(_) => (403, "Plugin unavailable".into()),
+                Err(error) => {
+                    eprintln!("plugin document rejected: {}: {}", error.code, error.message);
+                    (403, "<!doctype html><meta charset=\"utf-8\"><p>玩法加载失败，请在顶部重新选择已验证的玩法。</p>".into())
+                },
             };
             tauri::http::Response::builder()
                 .status(status)
