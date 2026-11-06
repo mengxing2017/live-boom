@@ -83,6 +83,33 @@ try {
  const ui=async expression=>{const r=await call('Runtime.evaluate',{expression,contextId:executionContextId,returnByValue:true,awaitPromise:true},controlFrame.session);if(r.exceptionDetails)throw new Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
  const click=async text=>{for(let n=0;n<100;n++){if(await ui(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()===${JSON.stringify(text)})`))break;await delay(100);}return ui(`(()=>{const b=Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim()===${JSON.stringify(text)});if(!b)throw Error('Button not found: '+${JSON.stringify(text)}+' '+document.body.innerText);const disabled=b.disabled,valid=b.form?.checkValidity();b.click();return {disabled,valid,invalid:Array.from(b.form?.querySelectorAll(':invalid')??[]).map(e=>({label:e.getAttribute('aria-label'),value:e.value}))};})()`)};
  const field=async(label,value)=>{await ui(`(()=>{const el=document.querySelector('[aria-label="'+${JSON.stringify(label)}+'"]');if(!el)throw Error('Missing '+${JSON.stringify(label)});el.focus();})()`);await call('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,commands:['selectAll']},controlFrame.session);await call('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2},controlFrame.session);await call('Input.insertText',{text:String(value)},controlFrame.session);const actual=await ui(`document.querySelector('[aria-label="'+${JSON.stringify(label)}+'"]').value`);assert.equal(actual,String(value),'Failed to fill '+label);};
+ async function recoveryCheck(){
+  await call('Page.navigate',{url:`${base}/tests/printer.html?kind=registry&picker=1&stale=1&document=${encodeURIComponent(`http://127.0.0.1:${port}/registry`)}&control=${encodeURIComponent(`http://127.0.0.1:${port}/registry-control`)}`},sessionId);
+  for(let n=0;n<100;n++){if(await evaluate("document.body.textContent.includes('当前玩法包不可用')"))break;await delay(50);}
+  assert.ok(await evaluate("document.body.textContent.includes('当前玩法包不可用')"));
+  assert.equal(await evaluate("document.querySelectorAll('.plugin-control-frame').length"),0,'An unverified saved plugin was loaded');
+  assert.equal(await evaluate("document.querySelector('[aria-label=切换玩法]').tagName"),'SELECT');
+  const history=await evaluate('JSON.stringify(window.__test.snapshot().history)');
+  await evaluate("document.querySelector('[aria-label=切换玩法]').click()");
+  assert.ok(await evaluate("document.querySelector('nav [aria-current=page]').textContent.endsWith('工作台')"),'Opening the selector navigated away');
+  const select=async value=>evaluate(`(()=>{const s=document.querySelector('[aria-label=切换玩法]');s.value=${JSON.stringify(value)};s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await select('test');
+  for(let n=0;n<100;n++){if(await evaluate("window.__test.snapshot().active.digest==='test'&&!!document.querySelector('.plugin-control-frame')"))break;await delay(50);}
+  assert.equal(await evaluate('window.__test.snapshot().active.digest'),'test');
+  for(let n=0;n<100;n++){if(await evaluate('window.__test.snapshot().display_ready'))break;await delay(50);}
+  assert.ok(await evaluate('window.__test.snapshot().display_ready'),'Recovered registry renderer did not become ready');
+  assert.equal(await evaluate('JSON.stringify(window.__test.snapshot().history)'),history,'Recovery erased history');
+  assert.ok(await evaluate("document.querySelector('nav [aria-current=page]').textContent.endsWith('工作台')"));
+  await evaluate('window.__test.blockActivation=true');await select('alternate');
+  for(let n=0;n<100;n++){if(await evaluate("document.querySelector('.status-message').textContent.includes('请先完成')"))break;await delay(50);}
+  assert.equal(await evaluate('window.__test.snapshot().active.digest'),'test','A rejected activation changed the selection');
+  assert.ok(await evaluate("document.querySelector('.status-message').textContent.includes('请先完成')"));
+  await evaluate('window.__test.blockActivation=false');await select('alternate');
+  for(let n=0;n<100;n++){if(await evaluate("window.__test.snapshot().active.digest==='alternate'"))break;await delay(50);}
+  assert.equal(await evaluate('window.__test.snapshot().active.digest'),'alternate');
+  assert.ok(await evaluate("document.querySelector('nav [aria-current=page]').textContent.endsWith('工作台')"));
+  console.log('Desktop workbench: stale package recovery, inline selection, history preservation and rejected switch feedback passed');
+ }
  async function registryCheck(){
  // The second example uses the same public shell/opaque bridge and its actual registry renderer.
  await call('Page.navigate',{url:`${base}/tests/printer.html?kind=registry&document=${encodeURIComponent(`http://127.0.0.1:${port}/registry`)}&control=${encodeURIComponent(`http://127.0.0.1:${port}/registry-control`)}`},sessionId);
@@ -109,7 +136,7 @@ try {
  assert.ok(await output("document.body.textContent.includes('等待登记')"),'Registry did not return to its idle view');
  console.log('Desktop workbench: real React registry submission/completion passed');
  }
- if(!process.env.LIVEBOOM_REGISTRY_ONLY){
+ if(!process.env.LIVEBOOM_REGISTRY_ONLY&&!process.env.LIVEBOOM_RECOVERY_ONLY){
  for(let n=0;n<100;n++){if(await ui("document.body.textContent.includes('打印现场')"))break;await delay(100);}
  assert.equal(await ui("document.body.textContent.includes('规则演示台')"),true);
  for(let n=0;n<300;n++){if(await evaluate('window.__test.snapshot().display_ready&&window.__test.metrics.output?.[0]>0'))break;await delay(100);}
@@ -214,6 +241,7 @@ try {
 
 
  await registryCheck();
+ await recoveryCheck();
  // A hostile control document still cannot install/activate plugins or reach arbitrary native commands.
  await call('Page.navigate',{url:controlUrl.replace(encodeURIComponent(`http://127.0.0.1:${port}/control`),encodeURIComponent(`http://127.0.0.1:${port}/evil-control`))},sessionId);
  controlFrame=await attachFrame('/evil-control');({executionContextId}=await call('Page.createIsolatedWorld',{frameId:controlFrame.id,worldName:'control-test'},controlFrame.session));
@@ -222,6 +250,6 @@ try {
  console.log('React control: real controls submit/pause/resume, frozen rule edits, scene changes, media import, completed history, embedded renderer, trusted PNG review and forbidden-command isolation passed');
  if(!process.env.LIVEBOOM_CONTROL_ONLY)console.log('Chromium WebGL: 3D scene, frozen two-unit plan, pause/resume, ordered unit acknowledgements, single completion, bounded rule PNG, five themes, six AA modes, camera persistence passed');
 
- } else { await registryCheck(); }
+ } else { if(process.env.LIVEBOOM_RECOVERY_ONLY)await recoveryCheck();else await registryCheck(); }
 
 } finally {ws?.close();chrome?.kill();vite.kill('SIGTERM');await new Promise(r=>server.close(r));await delay(300);await rm(profile,{recursive:true,force:true,maxRetries:8,retryDelay:150}).catch(error=>console.error('Temporary Chromium profile cleanup:',error.message));}
