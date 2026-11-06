@@ -74,9 +74,20 @@ Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安�
 
 ## 插件与验证
 
+文档站参考 `crowd/docs`，可独立启动，无需运行桌面客户端。在仓库根目录执行：
+
+```sh
+pnpm install --frozen-lockfile
+pnpm docs:dev
+```
+
+浏览器访问 <http://127.0.0.1:5174>，支持接口导航、本地全文搜索和 Mermaid 架构图。`pnpm docs` 为快捷启动命令；Linux 也可执行 `devbox run docs`。静态构建使用 `pnpm docs:build`，构建后通过 `pnpm docs:preview` 在 <http://127.0.0.1:4174> 预览。详见[文档站使用与维护](docs/documentation.md)。
+
 - [3D 制作台使用、恢复与待验项目](docs/printer-3d.md)
 - [迁移实施记录](report/3d-printer-live功能迁移实施记录.md)
-- [插件开发、私有仓库和签名交付](docs/plugin-development.md)
+- [插件开发指南：架构与 React 入门示例](docs/plugin-development.md)
+- [插件 API 参考：Manifest、生命周期与权限](docs/plugin-api-reference.md)
+- [插件测试、私有仓库与签名交付](docs/plugin-testing-and-release.md)
 - [重构架构、验证结果和发布验收](docs/refactoring-validation.md)
 - [架构设计基线](report/公共服务与玩法插件架构方案.md)
 

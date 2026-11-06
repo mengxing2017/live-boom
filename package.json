@@ -14,12 +14,20 @@
     "tauri": "pnpm plugins:build && pnpm --filter @liveboom/desktop-app tauri",
     "test:browser": "node tests/browser.mjs",
     "test:printer": "node tests/printer-browser.mjs",
-    "ui:notices": "node tools/ui-notices.mjs"
+    "ui:notices": "node tools/ui-notices.mjs",
+    "docs": "pnpm docs:dev",
+    "docs:dev": "vitepress dev docs --host 127.0.0.1 --port 5174 --strictPort",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs --host 127.0.0.1 --port 4174 --strictPort"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0"
+    "@types/react-dom": "^19.2.0",
+    "mermaid": "11.12.0",
+    "typescript": "^5.9.0",
+    "vitepress": "1.6.4",
+    "vitepress-plugin-mermaid": "2.0.17",
+    "vue": "3.5.13"
   },
   "license": "MIT"
 }

@@ -79,7 +79,8 @@
       "web": "pnpm dev",
       "desktop": "pnpm tauri dev",
       "desktop:check": "pnpm plugins:build && cargo check -p liveboom",
-      "desktop:verify": "pnpm plugins:build && cargo build -p liveboom && node tools/verify-linux-runtime.mjs"
+      "desktop:verify": "pnpm plugins:build && cargo build -p liveboom && node tools/verify-linux-runtime.mjs",
+      "docs": "pnpm docs:dev"
     }
   },
   "nixpkgs": {
