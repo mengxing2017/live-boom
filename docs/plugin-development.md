@@ -1,161 +1,447 @@
-# 独立玩法插件开发
+# liveboom 插件开发指南
 
-## 仓库与构建
+本文面向玩法作者和定制交付团队，以当前代码为准：宿主 **0.2.3**、`@liveboom/plugin-sdk` **0.2.3**、`sdkApi: "1"`、包格式 `liveboom.plugin.v1`。项目未上线，仅维护当前协议，不承诺旧插件或旧数据库兼容。
 
-闭源玩法只依赖固定版本的公共 SDK，不依赖桌面宿主源码。当前 SDK 尚未发布到 npm，可以先在公共仓库执行 `pnpm --filter @liveboom/plugin-sdk pack --pack-destination /tmp/liveboom-sdk`，将生成的 tarball 作为固定版本依赖安装到私有仓库；正式发布后使用确定版本的包，不使用浮动 workspace 路径或复制宿主工程。
+## 文档导航
+
+| 文档 | 内容 |
+| --- | --- |
+| 本文 | 架构边界、从零创建 React 玩法、专用工作台、目录组织 |
+| [插件 API 参考](plugin-api-reference.md) | Manifest、Schema、生命周期、服务、控制台命令、资源限制 |
+| [插件测试与交付](plugin-testing-and-release.md) | 调试、签名、离线安装、升级、回退、验收和故障排查 |
+| [3D 制作台](printer-3d.md) | 复杂示例的功能与使用说明 |
+| [开发数据目录与重置](development-data-reset.md) | 开发数据库路径与备份，非插件日常安装步骤 |
+
+实现依据：[SDK](../packages/plugin-sdk/src/)、[打包器](../packages/plugin-sdk/bin/pack.mjs)、[Rust 插件验证器](../crates/play-runtime/src/plugins.rs)、[调度器](../crates/play-runtime/src/coordinator.rs)、[操作台桥](../packages/desktop-ui/src/PluginControlHost.tsx)。文档中的命令需在注明的仓库根目录执行；示例使用 POSIX shell，Windows 可在 PowerShell 中执行等价命令。
+
+## 1. 架构与职责
+
+一个插件是可离线安装的 `.lbplug` 文件。公共服务运行在本机 Tauri/Rust 进程中，不要求插件作者部署服务器。宿主与玩法源码独立，客户获得安装包及公开 SDK，无需获得私有仓库访问权限。
+
+```mermaid
+flowchart LR
+  A[React 公共桌面壳] -->|受信任 IPC| B[Rust 调度器 / SQLite / 包验证 / 媒体]
+  C[插件操作台 iframe] -->|connectControl / 受限命令| A
+  D[插件渲染 iframe] -->|connectPlugin / 任务服务| A
+  A -->|状态与任务 / MessagePort| C
+  A -->|冻结输入与计划 / MessagePort| D
+```
+
+只有一个原生 `control` 窗口、一个权威队列、一个活动渲染实例和一份宿主音频输出。实际画面嵌入工作台，不再创建独立展示窗口。代码里的 `display_ready`、`register_display` 是渲染实例状态，不是系统窗口。
+
+| 公共宿主负责 | 插件负责 |
+| --- | --- |
+| 包安装、签名、发布者信任、摘要校验 | 玩法规则、视觉、动画、专属操作界面 |
+| 任务身份、幂等、队列、暂停、历史和重试 | 输入规整、冻结计划生成、执行及逐份完成回报 |
+| Schema 校验、权限、资源和数据隔离 | 声明 Schema、按服务契约读写自身状态 |
+| 媒体导入、原生保存对话框、声音播放 | 提供自有素材、字幕、声音请求、待导出图片 |
+
+插件不得直接调用 Tauri、宿主 DOM、文件系统、SQL、子进程或任意网络服务。当前只接收 `manual` 和 `demo` 两种本地来源；平台抓包、支付、平台数据采集和官方平台接入不属于插件 SDK 能力。
+
+插件文档运行在 `sandbox="allow-scripts"` 的不透明源 iframe 中。控制台和渲染文档互不读取 DOM，通信经过宿主。`DesktopTransport` 是公共壳的适配接口，不是供第三方玩法直接调用的 native 接口。
+
+## 2. 选择开发形态与仓库结构
+
+| 形态 | 适用情况 | 交付物 |
+| --- | --- | --- |
+| 渲染文档 + 宿主通用表单 | 快速验证玩法，输入字段较少 | `entry`、输入/配置 Schema |
+| React 操作台 + 渲染文档 | 需要队列、属性、专属工具、复杂布局 | 另提供 `controlEntry` 和两项 control 能力 |
+| 持久场景会话 + 每任务生命周期 | Three.js 场景、镜头、缓存、长驻资源 | 可选 `session.v1`、计划和显示设置能力 |
+
+React 可以同时用于操作台和渲染文档；纯 Canvas/DOM 渲染也可以使用同一个协议。插件必须把自身依赖打进包内，不能使用宿主已有的 React 实例或 CDN。
+
+建议私有仓库一仓一玩法：
 
 ```text
 customer-play/
-  package.json                  依赖 SDK，声明自身专有许可证
+  package.json
+  pnpm-lock.yaml
+  vendor/liveboom-plugin-sdk-0.2.3.tgz
   manifest.json
-  schemas/input.json
-  schemas/config.json
-  src/index.js                  简单玩法的入口
-  assets/                       仅发布所需素材
+  schemas/
+    input.json
+    config.json
+    plan.json                 # 可选
+    presentation.json         # 可选
+    examples.json             # 可选
+  src/
+    display.tsx               # 渲染入口，接 connectPlugin
+    control/App.tsx           # 可选操作台，接 connectControl
+    control/style.css
+    domain/                   # 纯规则与计划生成
+    scene/                    # 图形资源、场景生命周期
+  assets/                     # 仅随包交付的素材
+  web/                        # 生成的自包含 HTML
+  tests/
+  build.mjs
   THIRD_PARTY_NOTICES
+  dist/                       # 生成的 lbplug 和公钥信息
 ```
 
-可以参考 `plugins/registry`，复制后更换 ID、名称、发布者和版本。每次发布同 ID/版本内容必须一致，内容变化要递增版本。示例 manifest 的 `sdkApi: "1"` 与宿主 `0.2.x` 配套。
+私钥放在仓库外或 CI secrets。私有玩法不要 import `packages/desktop-ui`、`apps/desktop`、Rust 宿主内部模块，也不要通过宿主客户分支实现定制。SDK 当前没有单独发布 npm 的保证，以下流程使用实际 tarball。
+
+## 3. 从零创建可安装的 React 玩法
+
+本节实现一个带暂停/继续的昵称显示玩法，操作区先用宿主通用表单。所有下面标明路径的代码块均为对应文件的完整内容。React 专用操作台在下一节增加。
+
+### 3.1 准备工具与 SDK
+
+开发插件只需 Node.js 22、pnpm 11 和前端构建依赖；只有构建或运行宿主时才需要 Rust/Tauri 原生环境。宿主环境见 [README](../README.md#开发)。
+
+在公共 live-boom 仓库根目录执行：
+
+```sh
+mkdir -p /tmp/liveboom-sdk
+pnpm --filter @liveboom/plugin-sdk pack --pack-destination /tmp/liveboom-sdk
+```
+
+生成 `/tmp/liveboom-sdk/liveboom-plugin-sdk-0.2.3.tgz`。在自己的独立仓库创建 `vendor/`，把该文件复制进去，然后写入下列文件。团队应保留 SDK 来源、版本、tarball SHA-256 和锁文件。
+
+`package.json`：
 
 ```json
 {
-  "name": "customer-play",
+  "name": "customer-name-wall",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "dependencies": { "@liveboom/plugin-sdk": "file:vendor/liveboom-plugin-sdk-0.2.1.tgz" },
-  "scripts": { "build": "liveboom-plugin . dist/customer.lbplug" }
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": {
+    "@liveboom/plugin-sdk": "file:vendor/liveboom-plugin-sdk-0.2.3.tgz",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": { "esbuild": "0.28.2" }
 }
 ```
 
-简单入口由打包器注入 `liveboom.connect(factory)`，无需 import；源码示例：
+这里采用当前仓库锁文件中的版本作为固定起点。独立仓库还需创建 `pnpm-workspace.yaml`，明确允许 esbuild 的安装构建脚本：
 
-```js
-liveboom.connect(services => {
-  let timer;
+```yaml
+allowBuilds:
+  esbuild: true
+```
+
+然后在插件仓库执行 `pnpm install`，提交 `pnpm-lock.yaml` 与上述配置。否则 pnpm 11 可能以 `ERR_PNPM_IGNORED_BUILDS` 拒绝完成安装。不要为解决这一错误全局允许所有依赖执行安装脚本。
+
+### 3.2 Manifest 与 Schema
+
+`manifest.json`：
+
+```json
+{
+  "id": "customer.name-wall",
+  "name": "昵称展示墙",
+  "version": "1.0.0",
+  "sdkApi": "1",
+  "hostVersion": ">=0.2.3 <0.3.0",
+  "entry": "web/index.html",
+  "inputSchema": "schemas/input.json",
+  "configSchema": "schemas/config.json",
+  "stateSchemaVersion": 1,
+  "permissions": ["task.current.read", "task.result.report"],
+  "capabilities": [],
+  "publisher": "customer-studio"
+}
+```
+
+实际交付请使用自己的发布者和稳定的玩法 ID。修改包内容必须更新版本，不能重复发布相同 ID/版本的不同内容。
+
+`schemas/input.json`：
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "nickname": {
+      "type": "string", "title": "昵称", "minLength": 1, "maxLength": 32
+    }
+  },
+  "required": ["nickname"]
+}
+```
+
+`schemas/config.json`：
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "duration": {
+      "type": "integer", "title": "展示秒数", "minimum": 2, "maximum": 15, "default": 4
+    }
+  },
+  "required": ["duration"]
+}
+```
+
+Schema 是本项目的受限方言，不是完整 JSON Schema。`default` 帮助 UI 初始化表单，Rust 校验不会自动补齐客户端漏传的必填字段。
+
+### 3.3 React 渲染入口
+
+`src/display.tsx`：
+
+```tsx
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { connectPlugin } from '@liveboom/plugin-sdk/client';
+
+const root = createRoot(document.getElementById('root')!);
+function show(nickname = '等待参与', paused = false) {
+  flushSync(() => root.render(
+    <main className="scene">
+      <small>{paused ? '已暂停' : '本地娱乐'}</small>
+      <h1>{nickname}</h1>
+    </main>
+  ));
+}
+show();
+
+// 同步注册握手监听，不要等待 React useEffect 或异步素材加载后才连接。
+connectPlugin<{ nickname: string }, { duration: number }>(services => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let remaining = 0;
+  let started = 0;
+  let nickname = '';
+  let disposed = false;
+
+  function resume() {
+    if (disposed || timer !== undefined || remaining <= 0) return;
+    show(nickname);
+    started = performance.now();
+    timer = setTimeout(() => {
+      timer = undefined;
+      remaining = 0;
+      if (!disposed) services.result('completed');
+    }, remaining);
+  }
+  function pause() {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+    remaining = Math.max(1, remaining - (performance.now() - started));
+    show(nickname, true);
+  }
   return {
-    prepare(input) { return input; },
-    play(input) {
-      document.getElementById('stage').textContent = input.nickname;
-      timer = setTimeout(() => services.result('completed'), 2000);
+    prepare(input) {
+      const value = input.nickname.trim();
+      if (!value) throw new Error('昵称不能为空');
+      return { nickname: value };
     },
-    dispose() { clearTimeout(timer); }
+    play(input, config) {
+      nickname = input.nickname;
+      remaining = config.duration * 1000;
+      resume();
+    },
+    pause,
+    resume,
+    dispose() {
+      disposed = true;
+      clearTimeout(timer);
+      timer = undefined;
+      show();
+    }
   };
 });
 ```
 
-这段最小示例只说明协议；实际需实现 `pause/resume`，计时使用剩余时长，销毁不提交结果。完整实现见两个示例插件。每次任务 factory 的 services 固定绑定该任务和播放代次，旧异步回调不会获得新任务身份。不要保存 services 用于其他任务。
+React 默认会转义插入的昵称；不要改用 `innerHTML` 或 `dangerouslySetInnerHTML` 显示用户输入。任务完成由 `services.result` 回报；组件卸载或 `dispose` 不能回报完成。
 
-复杂玩法可自行用 React/Canvas/Three.js 构建自包含 HTML，放到 manifest.entry，显式引入并打包 `@liveboom/plugin-sdk/client` 的 `connectPlugin`。不能依赖宿主的 React、网络 CDN、同源文件或全局 Tauri。首期 HTML 中 JS/CSS 内联，素材使用 data URI，或声明 `assets.own` 后请求 `services.request('assets.resolve', {path:'assets/logo.png'})` 获取受限 data URI；不支持相对路径的多文件模块加载、Worker 或 WASM 权限。
+### 3.4 离线 HTML 构建与打包
 
-## 包格式与输入协议
+`build.mjs`：
 
-当前 `.lbplug` 是 UTF-8 JSON 归档，不是 ZIP：顶层为 `format: "liveboom.plugin.v1"`、`files`（安全相对路径 → base64 字节）、`integrity`（同路径 → SHA-256）、`signature`。签名数据为 ASCII 路径排序后、无空白序列化的 integrity 对象；Ed25519 对其字节签名。签名间接覆盖 manifest 和所有文件。未知字段、重复路径、路径穿越、缺失或损坏文件会拒绝安装。
+```js
+import { build } from 'esbuild';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { pack } from '@liveboom/plugin-sdk/pack';
 
-打包器仅收集 manifest、schema、入口、assets 与许可声明，不收集源码目录、私钥、默认 source map。assets 下的 `.map/.pem/.key` 和符号链接拒绝打包。密钥必须保存在私有 CI secrets 或仓库外。JS 可读性压缩不构成加密。
+const root = fileURLToPath(new URL('.', import.meta.url));
+const result = await build({
+  absWorkingDir: root,
+  entryPoints: ['src/display.tsx'],
+  bundle: true,
+  write: false,
+  metafile: true,
+  jsx: 'automatic',
+  format: 'iife',
+  target: 'es2022',
+  minify: true,
+  legalComments: 'inline',
+  define: { 'process.env.NODE_ENV': '"production"' }
+});
+const script = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+await mkdir(resolve(root, 'web'), { recursive: true });
+await writeFile(resolve(root, 'web/index.html'), `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body,#root{margin:0;height:100%;width:100%;overflow:hidden}
+.scene{height:100%;display:grid;place-content:center;text-align:center;
+background:#182536;color:#fff;font-family:system-ui}
+h1{font-size:clamp(24px,8vw,96px);overflow-wrap:anywhere;margin:16px}
+</style></head><body><div id="root"></div><script>${script}</script></body></html>`);
+console.log(await pack(root, resolve(root, 'dist/plugin.lbplug'), process.env.LIVEBOOM_SIGNING_KEY));
+```
 
-`inputSchema/configSchema` 使用首期受限 schema 方言，**不是完整 JSON Schema**：支持 object/string/integer/number/boolean/array、properties/required/additionalProperties:false、title/description/default、enum、minLength/maxLength、minimum/maximum。每层至多 32 字段；数组必须声明 items/maxItems（最多 100 项），可声明 minItems；不支持 $ref、pattern、oneOf 等，未知关键字拒绝安装。文本按 Unicode 字素簇计数；宿主拒绝控制字符、类型错误和未声明字段。单次输入/配置至多 64 KiB。根输入和配置应是对象，公共 UI 自动生成相应字段。
+创建 `THIRD_PARTY_NOTICES`，记录玩法自身的版权声明以及实际打入 HTML 的 SDK、React、React DOM、scheduler 等依赖的版本、完整版权和许可证文本。`legalComments` 不能替代完整许可整理；示例打包器只自动附带 SDK MIT 文件。见[交付文档的许可说明](plugin-testing-and-release.md#6-闭源仓库与许可交付)。
 
-未声明 plan.v1 时，prepare 返回经过同一 inputSchema 验证的规整输入；声明 plan.v1/planSchema 后返回独立冻结计划。两种路径均由 Rust 校验、存储后再发 play。重试已准备的任务复用冻结输入，不重新随机生成计划。宿主统一处理 task_id、epoch、instance、队列、容量、幂等、来源标识和结果；插件不声明自己的可信来源。
-
-必需权限为 `task.current.read/task.result.report`，可选 `storage.own/assets.own`，不支持网络、文件系统、系统进程或任意 SQL。进度目前预留消息，不进入权威任务状态。
-
-## 签名与交付
-
-在仓库外生成 Ed25519 PKCS#8 PEM 私钥，例如 `openssl genpkey -algorithm ED25519 -out /secure/publisher.pem`。构建签名包：
+然后在插件仓库执行：
 
 ```sh
-pnpm exec liveboom-plugin . dist/customer.lbplug /secure/publisher.pem
+pnpm build
 ```
 
-同时生成 `.publisher.json`，仅含发布者与公钥。交付插件、公钥、SHA-256 指纹和依赖声明；通过独立渠道核对指纹。客户在控制台保存发布者公钥，填写本机 `.lbplug` 路径导入，再选择插件启用。宿主不访问私有源码仓库，也不需要重编译。
+输出 `dist/plugin.lbplug` 及摘要。该命令只构建插件，不会修改宿主或安装到客户机器。打包成功不等于通过 Rust 安装验证，安装测试见[测试与交付](plugin-testing-and-release.md)。
 
-正式宿主拒绝未签名外部包。只有 debug 构建且显式设置 `LIVEBOOM_ALLOW_UNSIGNED=1` 才允许开发未签名包。随宿主编译携带的示例仅以精确摘要信任，并走相同安装、展示和 RPC 路径。
+此最小 build.mjs 使用 esbuild 转译 TSX，不执行 TypeScript 类型检查。正式项目应另配 TypeScript、React 类型声明和 `tsc --noEmit` 检查，并对 domain 规则和生命周期建立测试，不能只把 HTML 能生成作为发布门槛。
 
-插件包上限 200 MiB、2000 文件，资源解析单项至多 10 MiB；storage.get/set 仅访问当前任务所属玩法/版本/schema 的命名空间，单项 64 KiB、每命名空间 1 MiB。
+若不需要 React，自定义 `src/index.js` 并保留一个不存在的 `manifest.entry` 文件路径，打包器会生成默认 HTML 并注入 `liveboom.connect`。参考 [registry 渲染源码](../plugins/registry/src/index.js)。不要把 ES module import 直接写入这条简易构建路径；复杂玩法应使用上面的自包含 HTML 构建。
 
-## 版本、回退与卸载
+## 4. 增加 React 专用工作台
 
-新版本并排安装，队列与历史固定记录完整插件版本和摘要。切换玩法/版本要求当前和待执行队列为空；configure 只更新新任务规则，不重写已接收任务。presentation 独立即时更新。仅可切换满足当前协议且已验证的版本，不保证历史协议包可用。相同 stateSchemaVersion 可通过控制台显式复制到空目标版本；禁止覆盖和跨玩法复制。跨 schema 支持显式键映射与默认值：同发布者、同玩法、空目标、单项 64 KiB/总计 1 MiB，最多 100 键；来源完整保留并记录迁移审计。复杂值变换由插件作者先生成并审查迁移数据，不在宿主执行任意脚本。
+### 4.1 声明入口与能力
 
-被启用、当前/待执行/历史任务引用的版本拒绝卸载。停用并清空历史/开始新场后可卸载；卸载包保留命名空间数据，没有自动删除客户数据的操作。
+在 Manifest 中增加：
 
-故障时失败、中断与完成分别记录。渲染实例丢失或应用重启不会自动重播运行中任务，需要用户明确重试；应用重启后待执行队列也先暂停，玩法画面就绪后手动继续。宿主当前只允许一个实例打开同一数据目录。
-
-
-## 0.2.1 可选扩展
-
-3D 示例见 `plugins/printer-3d`。新增能力的插件声明最低 `hostVersion: ">=0.2.1 <0.3.0"`，基础 `sdkApi: "1"` 保留。签名 manifest 的 `capabilities` 只接受：
-
-| 能力 | 使用方式 |
-| --- | --- |
-| session.v1 | `connectPlugin(factory,{session: async (services,config)=>sessionLifecycle})`；session 一次创建，任务 factory 仍每任务创建；task dispose 不销毁 session |
-| plan.v1 | 声明 planSchema；prepare 返回 `{units:[...], ...}`；units 长度必须等于宿主预留工作量。play 第三个参数含 plan/completedUnits/source；逐份 `request('units.complete',{index})`，全部完成才 result |
-| presentation.v1 | 声明 presentationSchema；会话 `presentation(value)` 接收完整显示设置；`configure(config)` 接收新业务配置，仅用于显示当前规则，任务仍使用自己的 config |
-| preferences.own.v1 | session `request('preferences.get'/'preferences.set',{key,value?})`；绑定真实输出实例和当前插件版本，空闲可用；不伪造 task |
-| media.own.v1 | session `request('media.resolve',{reference})` 获取宿主导入且属于本插件的图片 data URI |
-| audio.own.v1 | task `audio.play`（自身包 path、volume、loop）、audio.stop、speech.say（text/lang/id/rate/volume/voice）；声音由可信输出顶层唯一播放，需用户在该窗口解锁，只选本地语音 |
-| preview.frames.v1 | session `frame(JPEG Blob)`，640×360、256 KiB、最多 5 FPS；独立二进制消息，不提升普通 RPC 限额。`metrics({...})` 至多 4 KiB、宿主最多每秒发布一次 |
-| export.png.v1 | session `exportPng(ArrayBuffer)`，PNG 最大 2 MiB、2048×2048；转到控制台预览，用户确认后原生保存对话框选址 |
-
-可选 manifest `workUnitsField` 指定输入中的 1–100 有界整数字段；同时声明 `workUnitsSelectorField/workUnitsRulesField` 时，宿主按输入选择器索引配置规则表，规则字段为 enabled 和 units（1–10），工作量为输入数量乘规则 units。宿主只认识通用表结构，不内置事件/礼物名称。缺省工作量为 1。普通优先任务仅调整等待队列顺序。
-
-可选 `examples` 指向 `{name,input}[]` JSON，最多 12 项，每项经 inputSchema 校验；模板只填表，不自动提交，也不能设置可信来源。打包器会携带该文件及扩展 schema。
-
-session 生命周期可实现 `presentation/configure/visibility/control/dispose`；公共镜头代理通过受限 control 消息传递，不转移任务执行权。资源应由插件自己的 bundler 打入 IIFE，素材走 assets.resolve，不使用相对网络 fetch。像素、音效、规则图和指标均不是完成凭证。
-
-项目未上线，仅维护当前协议，不提供历史插件信任名单或旧数据补全。无专用操作台的插件仍可使用通用表单；专用操作台统一采用视口协议。改编 MIT 代码的闭源交付仍须携带相应完整许可。
-
-## 可选独立控制文档
-
-插件可声明 `controlEntry: "web/control.html"`、`control.v1` 和 `control.viewport.v1`，三者必须同时提供。入口是包内完整离线 HTML，打包器将其加入完整性清单和签名。没有该声明时继续使用公共 Schema 表单。私有玩法自己的 React 组件、文案和样式随私有插件构建，不由公共宿主 import。
-
-操作台位于 `sandbox="allow-scripts"` 的独立 iframe，只连接 `@liveboom/plugin-sdk/control` 的 MessagePort。客户端应在文档 load 前注册连接监听（React 可通过同步根提交及 layout effect 初始化）。SDK 提供 `connectControl(onEvent)`、`request(method,params,bytes?)` 与 `dispose()`。事件包含裁剪至当前插件的 state、JPEG preview、metrics、export.ready；历史最多 100 条，不含其他玩法任务。组件释放时关闭连接；预览使用有界 JPEG 的 data URL，避免 opaque iframe 的 Blob URL 兼容问题。
-
-请求限额：每秒 40 条，最多 8 个并发，普通参数 64 KiB；图像导入独立 ArrayBuffer 最大 8 MiB，由原生再次校验。可用 method 为 command、media.import、voices、export.review。command 仅开放本地提交、配置、画面、队列控制、当前插件偏好与媒体读取、许可查看等固定名单；不能安装/卸载/启用插件、信任发布者、重启应用、任意调用 native 或保存任意路径。破坏性清理由可信宿主确认，PNG 保存须在可信宿主预览并点击保存。
-
-操作台和渲染文档均由唯一 control 原生窗口读取，但分处两个独立的 opaque iframe；非当前插件或非 control 窗口拒绝服务。原生桥只信任顶层随机请求凭证；控制命令白名单与渲染 task/epoch/instance 校验分别执行。文档 CSP 禁网、禁子框架、禁表单导航、禁 eval。宿主只创建一个渲染实例、一个任务队列和一个音频输出；控制文档不能自行加载第二个执行器。跨系统原生 WebView 隔离仍需目标系统发布验收。
-
-
-## 桌面控制视口（宿主 0.2.3 起）
-
-专用操作台在 `control.v1` 基础上声明 `control.viewport.v1`，同时提供 `controlEntry`。需要宿主版本 `>=0.2.3 <0.3.0`；打包器与 Rust 验证器会拒绝缺少 `control.v1` 或入口的视口声明，仅接受完整的视口控制能力声明。
-
-新布局的 iframe 占满公共工作区。插件应设置 `html,body,#root` 高度 100%，各级 Grid/Flex 的可收缩区域设置 `min-height:0;min-width:0`，滚动仅发生在任务/属性等局部面板。宿主不接收内容高度消息，SDK 不提供 `resize(height)`；插件自行在给定视口内布局。
-
-`connectControl` 增量事件：
-
-```ts
-{ type: 'viewport', value: {
-  width: number, height: number, // iframe 客户区 CSS 逻辑像素
-  dpr: number, visible: boolean,
-  mode: 'normal' | 'compact', revision: number,
-  density: 'compact' | 'comfortable'
-}}
-{ type: 'layout.reset' }
+```json
+{
+  "controlEntry": "web/control.html",
+  "capabilities": ["control.v1", "control.viewport.v1"]
+}
 ```
 
-首次握手、尺寸变化、可见性和字号偏好变化会发送视口。隐藏视图可能报告零尺寸，应等待恢复可见后重新布局。尺寸由 CSS 直接伸缩，无需经 Rust 往返。SDK 会同步根节点字号密度；插件仍负责有界布局。控制视口、监看容器、真实展示输出尺寸相互独立，不能通过改变控制窗尺寸重新初始化播放会话。
+这是合并到现有 Manifest 的字段，不是替换整个文件。这三项必须同时存在，宿主最低版本设为 `>=0.2.3 <0.3.0`。控制文档不调用 `connectPlugin`，渲染文档不调用 `connectControl`。
 
-可选 React 基础层从 `@liveboom/plugin-sdk/ui` 导入 `Workbench`、`InspectorTabs`、`Modal`，并导入 `@liveboom/plugin-sdk/ui/styles`。React/React DOM 为可选 peer 依赖，纯协议插件不需要采用 React 控件。插件构建时内联所需组件、CSS 和许可，不从宿主 DOM、CDN 或私有仓库动态读取源码。
+### 4.2 操作台示例
 
-`Workbench` 接受 `tasks/stage/inspector` ReactNode，提供分隔条、键盘调整、紧凑侧面板和恢复布局。`store.load/save` 可以调用 `client.request('layout.load')`、`client.request('layout.save', {layout})`；宿主仅接受 tasks/stage/inspector 三个有限百分比，总和约 100，按发布者/插件 ID/布局版本存储在可信侧。该存储不属于任务业务配置，写入失败不影响制作。
-
-SDK 将 iframe 内的 Ctrl/Cmd+, 转为受限 `app.settings` 请求；插件仍没有任意宿主命令或系统快捷键权限。所有既有命令白名单、摘要绑定、窗口角色和不透明源沙箱边界继续生效。公共壳隐藏工作台时保持控制文档挂载并停止向其转发预览帧，草稿与控制状态不会因导航重置。
-
-控制 iframe 仅允许脚本，未开放 `allow-forms`。提交按钮应使用 `type="button"` 并通过显式处理器调用 SDK 命令；Ctrl/Cmd+Enter 也应阻止默认提交并调用相同逻辑。不能依赖浏览器原生 form 导航/提交来触发业务，也不能为此放开沙箱。
-
-
-## 工作台内嵌实际画面
-
-专用控制文档从 `@liveboom/plugin-sdk/ui` 引入 `RenderSurface`，在期望显示实际玩法的位置放置该组件，并传入受限 `request` 方法：
+`src/control/App.tsx`：
 
 ```tsx
-<RenderSurface request={(method, params) => client.request(method, params)} />
+import { useLayoutEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
+import { connectControl, type ControlState } from '@liveboom/plugin-sdk/control';
+import { Workbench, RenderSurface } from '@liveboom/plugin-sdk/ui';
+import '@liveboom/plugin-sdk/ui/styles';
+import './style.css';
+
+function App() {
+  const [state, setState] = useState<ControlState | null>(null);
+  const [nickname, setNickname] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const client = useRef<ReturnType<typeof connectControl> | null>(null);
+  // 同步根提交 + layout effect 确保在宿主 iframe load 握手前监听。
+  useLayoutEffect(() => {
+    const bridge = connectControl(event => {
+      if (event.type === 'state') setState(event.value);
+      if (event.type === 'layout.reset') setResetKey(n => n + 1);
+    });
+    client.current = bridge;
+    return () => { client.current = null; bridge.dispose(); };
+  }, []);
+  const request = (method: string, params: Record<string, unknown> = {}) =>
+    client.current?.request(method, params) ?? Promise.reject(new Error('操作台尚未连接'));
+  const command = (name: string, args: Record<string, unknown> = {}) =>
+    request('command', { name, args });
+
+  async function submit() {
+    if (!nickname.trim() || busy || !state) return;
+    setBusy(true);
+    try {
+      await command('submit', {
+        command_id: crypto.randomUUID(), input: { nickname: nickname.trim() }
+      });
+      setNickname(''); setMessage('已加入队列');
+    } catch (error) { setMessage(String(error)); }
+    finally { setBusy(false); }
+  }
+  return <Workbench resetKey={resetKey}
+    store={{ load: () => request('layout.load'), save: layout => request('layout.save', { layout }) }}
+    tasks={<section className="pane">
+      <h2>等待任务</h2>
+      <ul>{state?.queue.map(task => <li key={task.id}>{String(task.input.nickname)}</li>)}</ul>
+    </section>}
+    stage={<RenderSurface request={request} />}
+    inspector={<section className="pane">
+      <h2>昵称展示墙</h2>
+      <label>昵称<input value={nickname} maxLength={32}
+        onChange={event => setNickname(event.target.value)} /></label>
+      <button type="button" disabled={!state || busy} onClick={() => void submit()}>加入队列</button>
+      <button type="button" disabled={!state} onClick={() => {
+        void command(state?.paused ? 'resume' : 'pause').catch(error => setMessage(String(error)));
+      }}>{state?.paused ? '继续' : '暂停'}</button>
+      <p role="status">{message}</p>
+    </section>}
+  />;
+}
+flushSync(() => createRoot(document.getElementById('root')!).render(<App />));
 ```
 
-容器必须有明确可用高度。组件上报 `surface.bounds`（x/y/width/height/visible，CSS 像素）；宿主校验有限数值并裁剪到控制 iframe 边界，将自己持有的渲染 iframe 覆盖在此空位。没有复制场景、JPEG 回传或插件跨源 DOM 访问。工作台失去可见性、控件遮挡画面或弹出导出审核时隐藏承载区，保留渲染器与运行状态；导航回来继续显示。宿主向渲染会话发送 `visibility`；3D 会话隐藏时用定时调度继续制作和回执、停止 GPU 绘制，避免依赖隐藏 iframe 的 requestAnimationFrame。控制文档不应在占位区内放置其他控件。
+`src/control/style.css`：
 
-一个玩法提供一个承载区。标准 3D 制作台在中央画面区预留位置，昵称登记在右侧预留位置；未提供专用控制文档的玩法由公共宿主分配画面与表单区域。不再提供 `open_display`、`resize_display` 或 display 原生窗口；尺寸依据工作台区域与 DPR 自动适配。内部 `register_display` / `display_ready` 仅表示渲染实例注册/就绪，不再表示操作系统窗口。
+```css
+html, body, #root { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+* { box-sizing: border-box; }
+.pane { height: 100%; min-height: 0; min-width: 0; overflow: auto; padding: 12px; }
+.pane label { display: grid; gap: 6px; }
+.pane input { width: 100%; min-width: 0; }
+.pane button { margin-top: 8px; }
+```
 
-宿主重载玩法时生成新实例，旧代次回调仍拒绝；音频首次解锁按钮位于工作台画面。SDK 的可选预览帧协议不是本方案的实际显示路径，3D 示例已停止生成和回传低帧 JPEG。
+布局必须占满宿主分配的视口；可滚动列表单独滚动。不要使用网页式固定主内容宽度、整页长滚动、通过内容高度撑开 iframe 或新建展示窗口。
+
+### 4.3 构建控制文档
+
+在前面 `build.mjs` 的 `pack(...)` 调用**之前**增加：
+
+```js
+const control = await build({
+  absWorkingDir: root, entryPoints: ['src/control/App.tsx'],
+  bundle: true, write: false, metafile: true, outdir: 'out',
+  jsx: 'automatic', format: 'iife', target: 'es2022',
+  minify: true, legalComments: 'inline',
+  define: { 'process.env.NODE_ENV': '"production"' }
+});
+const js = control.outputFiles.find(file => file.path.endsWith('.js')).text
+  .replace(/<\/script/gi, '<\\/script');
+const css = control.outputFiles.find(file => file.path.endsWith('.css')).text
+  .replace(/<\/style/gi, '<\\/style');
+await writeFile(resolve(root, 'web/control.html'), `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`);
+```
+
+重新构建前递增插件版本，并更新实际打入控制文档的 Radix、面板库等许可声明。不要从公共仓库 `tools/` 导入未随 SDK 发布的构建辅助脚本；可在自己的仓库实现许可收集。公共示例的构建脚本用于参考，不保证直接拷到私有仓库即可执行。
+
+### 4.4 RenderSurface 的工作方式
+
+`RenderSurface` 只预留布局空位，通过 `surface.bounds` 报告位置。宿主在对应位置放置自己管理的真实渲染 iframe，并裁剪到工作台边界。它不是第二个渲染器，也不是 JPEG 预览图。一个玩法只提供一个画面承载区，不在占位区域内叠放输入框和按钮。
+
+组件会检测遮挡；侧边抽屉或 Modal 覆盖时画面隐藏。导航到历史/设置、工作台不可见时，操作台保持挂载，草稿继续保留；渲染会话收到 `visibility(false)`。隐藏不等于暂停，任务不能依赖可见 iframe 的 RAF 才能推进。详细事件及限制见 [API 参考](plugin-api-reference.md)。
+
+## 5. 复杂玩法的模块组织
+
+当玩法增加冻结计划、随机模型、相机和音效时，可按以下职责拆分，仍只构建一个插件包：
+
+| 模块 | 职责与约束 |
+| --- | --- |
+| `domain/` | 纯函数验证与计划生成；输入/配置确定后生成可序列化计划，便于测试 |
+| `scene/` | session 级场景、模型缓存、镜头、渲染循环；任务结束不销毁整个场景 |
+| `display.tsx` | 连接 SDK，桥接 task 与 session，不自己维护另一份权威队列 |
+| `control/` | 表单草稿、队列视图、属性编辑；通过 command 修改宿主状态 |
+| `assets/` | 有授权的模型纹理和音效；不能把源码、密钥或 source map 放进来 |
+
+`plan.v1` 下 `prepare` 返回独立的计划，Rust 校验并持久化后才播放；重试复用冻结计划与逐份进度。`configure` 修改新任务规则，`presentation` 修改当前显示效果，不用场景配置覆盖任务已经冻结的规则。完整设计与样例见 [API 参考](plugin-api-reference.md#4-任务生命周期与冻结计划) 和 [printer-3d](../plugins/printer-3d/src/)。
+
+## 6. 下一步
+
+先按[测试与交付](plugin-testing-and-release.md)导入最小玩法并跑通完整任务，再逐项加入专用工作台、资源和能力。发布前对照 API 限额和交付清单验收。公共宿主的 MIT 许可允许独立闭源玩法；MIT 代码和依赖的版权声明仍需随交付保留，JS/素材包也不等于加密或 DRM。
