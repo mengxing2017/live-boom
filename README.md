@@ -74,7 +74,7 @@ Windows 安装包：`pnpm tauri build`。配置为 NSIS 和离线 WebView2 安�
 
 ## 插件与验证
 
-文档站参考 `crowd/docs`，可独立启动，无需运行桌面客户端。在仓库根目录执行：
+文档站使用 VitePress，可独立启动，无需运行桌面客户端。在仓库根目录执行：
 
 ```sh
 pnpm install --frozen-lockfile
