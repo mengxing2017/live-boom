@@ -392,6 +392,29 @@ fn builtin_trust_applies_only_to_exact_digest_and_files_remain_immutable() {
     let p = m.install(&sample()).unwrap();
     let bytes = std::fs::read(t.0.join(format!("{}.lbplug", p.digest))).unwrap();
     assert_eq!(bytes, sample());
+    let mut updated: Bundle = serde_json::from_slice(&sample()).unwrap();
+    replace(
+        &mut updated,
+        "web/index.html",
+        b"<main>Current built-in</main>",
+    );
+    let updated = encode(&updated);
+    let current_manager = PluginManager::new(t.0.clone(), false, vec![hash(&updated)]).unwrap();
+    let current = current_manager.install(&updated).unwrap();
+    assert_eq!(
+        current_manager
+            .document_for(&p.digest, false)
+            .unwrap_err()
+            .code,
+        "UNSIGNED_PLUGIN"
+    );
+    assert!(
+        current_manager
+            .document_for(&current.digest, false)
+            .unwrap()
+            .contains("Current built-in")
+    );
+    assert_eq!(current_manager.list().unwrap().len(), 1);
     std::fs::write(t.0.join(format!("{}.lbplug", p.digest)), b"{}").unwrap();
     assert_eq!(m.load(&p.digest).err().unwrap().code, "INTEGRITY_FAILED");
 }
