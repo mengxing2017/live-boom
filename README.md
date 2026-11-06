@@ -19,7 +19,7 @@ plugins/printer-3d/       开源示例：3D 制作台
 
 使用 Rust 1.98.0、Node.js 22、pnpm 11。Windows 桌面开发需安装 MSVC C++ 构建工具和 WebView2；Linux 桌面开发需 GTK3、WebKitGTK 4.1、OpenSSL 等开发依赖。纯 Rust 库测试不需要 GUI 环境。
 
-Linux 推荐使用仓库 Devbox 环境。构建环境和原生依赖统一固定在 nixpkgs `8edc0c72e3a38faf5434e40d1f19431125fe4b30`：pkg-config、OpenSSL、D-Bus、GTK3、WebKitGTK 4.1、librsvg 的运行与开发输出均取自同一提交，并由 `devbox.lock` 固定解析结果。只有 Rust、Node 和 pkg-config 不够：`libdbus-sys` 需要 `dbus-1.pc` 及对应头文件/库，后续 Tauri 还需要 GTK/WebKit 的开发文件。
+Linux 推荐使用仓库 Devbox 环境。构建环境和原生依赖统一固定在 nixpkgs `8edc0c72e3a38faf5434e40d1f19431125fe4b30`：pkg-config、OpenSSL、D-Bus、GTK3、WebKitGTK 4.1、librsvg 和 Mesa 均取自同一提交，并由 `devbox.lock` 固定解析结果。只有 Rust、Node 和 pkg-config 不够：`libdbus-sys` 需要 `dbus-1.pc` 及对应头文件/库，后续 Tauri 还需要 GTK/WebKit 的开发文件。
 
 ```sh
 devbox install
@@ -28,6 +28,12 @@ devbox run desktop
 ```
 
 也可先进入 `devbox shell`，再执行下面的 pnpm/Cargo 命令。普通终端直接执行 `pnpm tauri dev` 不会自动继承项目 Devbox 的依赖路径。不要手工扫描整个 `/nix/store` 或写死临时 `PKG_CONFIG_PATH`，以免混用不同版本的原生库。
+
+Linux 出现 `Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...` 时，表示 WebKit 图形进程初始化失败，不能仅按普通警告忽略。Devbox 已补入与 WebKit 同一 nixpkgs 的 Mesa 驱动，并在初始化时通过 `__EGL_VENDOR_LIBRARY_DIRS` 指向项目 profile 的 EGL vendor 目录，同时设置同源的 `GBM_BACKENDS_PATH` 和 `LIBGL_DRIVERS_PATH`，避免误找 NixOS 的 `/run/opengl-driver`；不需要全局关闭 GPU 或 WebGL。更新后停止旧客户端、退出旧 `devbox shell`，从项目根目录重新执行 `devbox install` 和 `devbox run desktop`。用户显式设置的 EGL vendor 变量会保留；如果曾手工设置过这些变量，需要检查它们是否仍指向正确驱动。使用专有 NVIDIA 驱动的环境需提供与该驱动匹配的 EGL vendor 配置。此配置解决的是 Devbox 开发环境，正式 Linux 分发仍须验证目标系统的驱动环境。WebKit 此错误对应初始化失败后主动终止进程，见 [WebKit 实现](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/graphics/egl/PlatformDisplayDefault.cpp)。
+
+`AT-SPI ... org.a11y.Bus ... ServiceUnknown` 表示桌面会话缺少辅助功能总线，不是插件文档加载失败的原因。未使用屏幕阅读器时通常不影响玩法；需要辅助功能时应修复桌面会话的 AT-SPI/D-Bus 服务，不在程序中强制禁用辅助功能。
+
+`plugin document rejected: FORBIDDEN: 非当前插件` 与 EGL 是独立问题。控制页路径曾被 `convertFileSrc` 编码成 `%2Fcontrol`，已修正 URL 拼接，并对原生路由补充严格的编码路径解析及回归测试。更新后需重启原生客户端；不需要删除数据库，也不会放开非当前插件的访问限制。
 
 如果遇到 `failed to run custom build command for libdbus-sys`，在项目环境中检查并编译：
 
