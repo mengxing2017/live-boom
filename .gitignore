@@ -29,3 +29,5 @@ report/
 # Plugin signing keys belong outside the public repository
 *.pem
 *.key
+
+.aws
